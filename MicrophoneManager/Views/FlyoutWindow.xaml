@@ -9,7 +9,8 @@
         Background="Transparent"
         ShowInTaskbar="False"
         Topmost="True"
-        ResizeMode="NoResize">
+    ResizeMode="NoResize"
+    PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
 
     <Border Background="#2D2D2D"
             CornerRadius="8"

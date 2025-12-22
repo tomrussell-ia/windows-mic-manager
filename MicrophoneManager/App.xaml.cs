@@ -1,6 +1,7 @@
 using System.Windows;
 using MicrophoneManager.Services;
 using MicrophoneManager.ViewModels;
+using MicrophoneManager.Views;
 using Application = System.Windows.Application;
 
 namespace MicrophoneManager;
@@ -11,6 +12,7 @@ public partial class App : Application
 
     public static TrayViewModel? TrayViewModel { get; set; }
     public static AudioDeviceService? AudioService { get; set; }
+    public static FlyoutWindow? DockedWindow { get; set; }
 
     private void Application_Startup(object sender, StartupEventArgs e)
     {
@@ -22,6 +24,12 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            DockedWindow?.Close();
+        }
+        catch { }
+
         AudioService?.Dispose();
         base.OnExit(e);
     }

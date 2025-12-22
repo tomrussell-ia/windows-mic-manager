@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using MicrophoneManager.Models;
 using MicrophoneManager.ViewModels;
 using UserControl = System.Windows.Controls.UserControl;
@@ -42,11 +43,77 @@ public partial class MicrophoneFlyout : UserControl
             {
                 ViewModel.RefreshDevices();
                 UpdateMuteButton();
+                UpdateDockButton();
             }
         };
 
         // Initial mute button state
         UpdateMuteButton();
+
+        // Initial dock button state
+        UpdateDockButton();
+    }
+
+    private void UpdateDockButton()
+    {
+        // E718 = Pin, E77A = Unpin (Segoe MDL2 Assets)
+        DockIcon.Text = App.DockedWindow != null ? "\uE77A" : "\uE718";
+        DockButton.ToolTip = App.DockedWindow != null ? "Undock" : "Dock";
+    }
+
+    private void DockButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Toggle a persistent Topmost window that hosts the same flyout UI.
+        if (App.DockedWindow != null)
+        {
+            try
+            {
+                App.DockedWindow.Close();
+            }
+            catch { }
+
+            App.DockedWindow = null;
+            UpdateDockButton();
+            return;
+        }
+
+        var dockedWindow = new FlyoutWindow();
+
+        // Position it near the top-right of the primary work area.
+        dockedWindow.Loaded += (_, __) =>
+        {
+            var workArea = SystemParameters.WorkArea;
+            const double margin = 12;
+            dockedWindow.Left = workArea.Right - dockedWindow.Width - margin;
+            dockedWindow.Top = workArea.Top + margin;
+        };
+
+        dockedWindow.Closed += (_, __) =>
+        {
+            if (ReferenceEquals(App.DockedWindow, dockedWindow))
+            {
+                App.DockedWindow = null;
+            }
+
+            // If the tray popup is open, refresh the button state.
+            Dispatcher.BeginInvoke(UpdateDockButton);
+        };
+
+        // Allow quick close via Escape even when docked.
+        dockedWindow.PreviewKeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                dockedWindow.Close();
+                args.Handled = true;
+            }
+        };
+
+        App.DockedWindow = dockedWindow;
+        dockedWindow.Show();
+        dockedWindow.Activate();
+
+        UpdateDockButton();
     }
 
     private void UpdateMuteButton()

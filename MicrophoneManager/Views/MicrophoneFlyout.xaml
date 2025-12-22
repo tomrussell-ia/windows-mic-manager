@@ -76,12 +76,35 @@
             </Grid.RowDefinitions>
 
             <!-- Apps Using Microphone Section (TOP) -->
-            <TextBlock Grid.Row="0"
-                       Text="Apps using microphone"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       Foreground="#999999"
-                       Margin="4,0,0,8"/>
+            <Grid Grid.Row="0" Margin="4,0,4,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="Apps using microphone"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#999999"
+                           VerticalAlignment="Center"/>
+
+                <!-- Dock / Undock -->
+                <Button Grid.Column="1"
+                        x:Name="DockButton"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        Padding="6"
+                        Click="DockButton_Click"
+                        ToolTip="Dock / Undock">
+                    <TextBlock x:Name="DockIcon"
+                               Text="&#xE718;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="14"
+                               Foreground="#999999"
+                               VerticalAlignment="Center"/>
+                </Button>
+            </Grid>
 
             <!-- Active Sessions List - no max height, shows all apps -->
             <ItemsControl Grid.Row="1"
