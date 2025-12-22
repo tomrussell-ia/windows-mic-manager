@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:MicrophoneManager.Views"
         Title="Microphone Selection"
-        Width="340" Height="400"
+        Width="340" Height="480"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -20,6 +20,6 @@
             <DropShadowEffect BlurRadius="15" ShadowDepth="2" Opacity="0.5"/>
         </Border.Effect>
 
-        <local:MicrophoneFlyout x:Name="Flyout"/>
+        <local:MicrophoneFlyout x:Name="Flyout" ShowAppsSection="False" IsDockedMode="True"/>
     </Border>
 </Window>

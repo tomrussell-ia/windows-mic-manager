@@ -9,6 +9,30 @@ namespace MicrophoneManager.Views;
 
 public partial class MicrophoneFlyout : UserControl
 {
+    public static readonly DependencyProperty ShowAppsSectionProperty = DependencyProperty.Register(
+        nameof(ShowAppsSection),
+        typeof(bool),
+        typeof(MicrophoneFlyout),
+        new PropertyMetadata(true));
+
+    public static readonly DependencyProperty IsDockedModeProperty = DependencyProperty.Register(
+        nameof(IsDockedMode),
+        typeof(bool),
+        typeof(MicrophoneFlyout),
+        new PropertyMetadata(false));
+
+    public bool ShowAppsSection
+    {
+        get => (bool)GetValue(ShowAppsSectionProperty);
+        set => SetValue(ShowAppsSectionProperty, value);
+    }
+
+    public bool IsDockedMode
+    {
+        get => (bool)GetValue(IsDockedModeProperty);
+        set => SetValue(IsDockedModeProperty, value);
+    }
+
     public MicrophoneListViewModel ViewModel { get; }
 
     public MicrophoneFlyout()

@@ -1,26 +1,36 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
+using NAudio.Wave;
 using MicrophoneManager.Models;
 
 namespace MicrophoneManager.Services;
 
 public class AudioDeviceService : IDisposable
 {
+    private static readonly Guid SubtypePcm = new("00000001-0000-0010-8000-00AA00389B71");
+    private static readonly Guid SubtypeIeeeFloat = new("00000003-0000-0010-8000-00AA00389B71");
     private readonly MMDeviceEnumerator _enumerator;
     private readonly DeviceNotificationClient _notificationClient;
     private readonly object _defaultVolumeNotificationLock = new();
     private string? _defaultCaptureDeviceIdWithVolumeNotifications;
     private AudioEndpointVolume? _defaultCaptureEndpointVolume;
+
+    private readonly object _defaultInputMeterLock = new();
+    private string? _defaultCaptureDeviceIdWithInputMeter;
+    private WasapiCapture? _defaultCapture;
+    private DateTime _lastInputMeterRaisedAtUtc = DateTime.MinValue;
     private bool _disposed;
 
     public event EventHandler? DevicesChanged;
     public event EventHandler? DefaultDeviceChanged;
     public event EventHandler<DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
+    public event EventHandler<DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
 
     public AudioDeviceService()
     {
@@ -30,6 +40,9 @@ public class AudioDeviceService : IDisposable
 
         // Track default microphone volume changes (e.g., changed by other apps)
         UpdateDefaultMicrophoneVolumeNotificationSubscription();
+
+        // Track default microphone input level (real-time meter)
+        UpdateDefaultMicrophoneInputMeterSubscription();
     }
 
     /// <summary>
@@ -379,7 +392,199 @@ public class AudioDeviceService : IDisposable
     internal void OnDefaultDeviceChanged()
     {
         UpdateDefaultMicrophoneVolumeNotificationSubscription();
+        UpdateDefaultMicrophoneInputMeterSubscription();
         DefaultDeviceChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void UpdateDefaultMicrophoneInputMeterSubscription()
+    {
+        lock (_defaultInputMeterLock)
+        {
+            var defaultDeviceId = GetDefaultDeviceId(Role.Console);
+
+            if (_defaultCaptureDeviceIdWithInputMeter == defaultDeviceId && _defaultCapture != null)
+            {
+                return;
+            }
+
+            if (_defaultCapture != null)
+            {
+                try
+                {
+                    _defaultCapture.DataAvailable -= OnDefaultCaptureDataAvailable;
+                    _defaultCapture.RecordingStopped -= OnDefaultCaptureRecordingStopped;
+                }
+                catch { }
+
+                try
+                {
+                    _defaultCapture.StopRecording();
+                }
+                catch { }
+
+                try
+                {
+                    _defaultCapture.Dispose();
+                }
+                catch { }
+
+                _defaultCapture = null;
+                _defaultCaptureDeviceIdWithInputMeter = null;
+            }
+
+            if (defaultDeviceId == null) return;
+
+            var device = GetDeviceById(defaultDeviceId);
+            if (device == null) return;
+
+            try
+            {
+                var capture = new WasapiCapture(device);
+                capture.DataAvailable += OnDefaultCaptureDataAvailable;
+                capture.RecordingStopped += OnDefaultCaptureRecordingStopped;
+                capture.StartRecording();
+
+                _defaultCapture = capture;
+                _defaultCaptureDeviceIdWithInputMeter = defaultDeviceId;
+            }
+            catch
+            {
+                _defaultCapture = null;
+                _defaultCaptureDeviceIdWithInputMeter = null;
+            }
+        }
+    }
+
+    private void OnDefaultCaptureRecordingStopped(object? sender, StoppedEventArgs e)
+    {
+        // If recording stops unexpectedly, try to restart on the current default.
+        // (Guarded to avoid tight loops)
+        try
+        {
+            UpdateDefaultMicrophoneInputMeterSubscription();
+        }
+        catch { }
+    }
+
+    private void OnDefaultCaptureDataAvailable(object? sender, WaveInEventArgs e)
+    {
+        string? deviceId;
+        WasapiCapture? capture;
+
+        lock (_defaultInputMeterLock)
+        {
+            deviceId = _defaultCaptureDeviceIdWithInputMeter;
+            capture = _defaultCapture;
+        }
+
+        if (deviceId == null || capture == null) return;
+
+        // Throttle UI-facing events to ~30Hz.
+        var nowUtc = DateTime.UtcNow;
+        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 33)
+        {
+            return;
+        }
+
+        var peak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
+
+        // Convert to dBFS and map [-60dB..0dB] => [0..100]
+        var peakDb = peak <= 0 ? -60.0 : 20.0 * Math.Log10(Math.Max(peak, 1e-20));
+        peakDb = Math.Max(-60.0, Math.Min(0.0, peakDb));
+        var percent = (peakDb + 60.0) / 60.0 * 100.0;
+
+        _lastInputMeterRaisedAtUtc = nowUtc;
+        DefaultMicrophoneInputLevelChanged?.Invoke(
+            this,
+            new DefaultMicrophoneInputLevelChangedEventArgs(deviceId, percent, peakDb));
+    }
+
+    private static double CalculatePeakAmplitude(byte[] buffer, int bytesRecorded, WaveFormat waveFormat)
+    {
+        if (bytesRecorded <= 0) return 0.0;
+
+        var blockAlign = waveFormat.BlockAlign;
+        if (blockAlign <= 0) return 0.0;
+
+        var usableBytes = bytesRecorded - (bytesRecorded % blockAlign);
+        if (usableBytes <= 0) return 0.0;
+
+        var encoding = waveFormat.Encoding;
+
+        // Handle extensible formats (common for WASAPI shared mode)
+        if (encoding == WaveFormatEncoding.Extensible && waveFormat is WaveFormatExtensible extensible)
+        {
+            if (extensible.SubFormat == SubtypeIeeeFloat)
+            {
+                encoding = WaveFormatEncoding.IeeeFloat;
+            }
+            else if (extensible.SubFormat == SubtypePcm)
+            {
+                encoding = WaveFormatEncoding.Pcm;
+            }
+        }
+
+        var channels = Math.Max(1, waveFormat.Channels);
+        var bits = waveFormat.BitsPerSample;
+
+        double peak = 0.0;
+
+        if (encoding == WaveFormatEncoding.IeeeFloat && bits == 32)
+        {
+            var span = buffer.AsSpan(0, usableBytes);
+            var floats = MemoryMarshal.Cast<byte, float>(span);
+            for (var i = 0; i < floats.Length; i++)
+            {
+                var v = Math.Abs(floats[i]);
+                if (v > peak) peak = v;
+            }
+            return Math.Min(1.0, peak);
+        }
+
+        if (encoding == WaveFormatEncoding.Pcm && bits == 16)
+        {
+            var span = buffer.AsSpan(0, usableBytes);
+            for (var i = 0; i < span.Length; i += 2)
+            {
+                var sample = (short)(span[i] | (span[i + 1] << 8));
+                var v = Math.Abs(sample / 32768.0);
+                if (v > peak) peak = v;
+            }
+            return Math.Min(1.0, peak);
+        }
+
+        if (encoding == WaveFormatEncoding.Pcm && bits == 24)
+        {
+            var span = buffer.AsSpan(0, usableBytes);
+            for (var i = 0; i < span.Length; i += 3)
+            {
+                // 24-bit little endian signed
+                var sample = span[i] | (span[i + 1] << 8) | (span[i + 2] << 16);
+                if ((sample & 0x800000) != 0)
+                {
+                    sample |= unchecked((int)0xFF000000);
+                }
+                var v = Math.Abs(sample / 8388608.0);
+                if (v > peak) peak = v;
+            }
+            return Math.Min(1.0, peak);
+        }
+
+        if (encoding == WaveFormatEncoding.Pcm && bits == 32)
+        {
+            var span = buffer.AsSpan(0, usableBytes);
+            for (var i = 0; i < span.Length; i += 4)
+            {
+                var sample = span[i] | (span[i + 1] << 8) | (span[i + 2] << 16) | (span[i + 3] << 24);
+                var v = Math.Abs(sample / 2147483648.0);
+                if (v > peak) peak = v;
+            }
+            return Math.Min(1.0, peak);
+        }
+
+        // Fallback: treat as silence if we can't decode
+        _ = channels;
+        return 0.0;
     }
 
     private void UpdateDefaultMicrophoneVolumeNotificationSubscription()
@@ -446,6 +651,34 @@ public class AudioDeviceService : IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        lock (_defaultInputMeterLock)
+        {
+            if (_defaultCapture != null)
+            {
+                try
+                {
+                    _defaultCapture.DataAvailable -= OnDefaultCaptureDataAvailable;
+                    _defaultCapture.RecordingStopped -= OnDefaultCaptureRecordingStopped;
+                }
+                catch { }
+
+                try
+                {
+                    _defaultCapture.StopRecording();
+                }
+                catch { }
+
+                try
+                {
+                    _defaultCapture.Dispose();
+                }
+                catch { }
+
+                _defaultCapture = null;
+                _defaultCaptureDeviceIdWithInputMeter = null;
+            }
+        }
+
         lock (_defaultVolumeNotificationLock)
         {
             if (_defaultCaptureEndpointVolume != null)
@@ -482,6 +715,28 @@ public class AudioDeviceService : IDisposable
         public string DeviceId { get; }
         public float VolumeLevelScalar { get; }
         public bool IsMuted { get; }
+    }
+
+    public sealed class DefaultMicrophoneInputLevelChangedEventArgs : EventArgs
+    {
+        public DefaultMicrophoneInputLevelChangedEventArgs(string deviceId, double inputLevelPercent, double inputLevelDbFs)
+        {
+            DeviceId = deviceId;
+            InputLevelPercent = inputLevelPercent;
+            InputLevelDbFs = inputLevelDbFs;
+        }
+
+        public string DeviceId { get; }
+
+        /// <summary>
+        /// Meter percent mapped from dBFS range [-60..0] => [0..100].
+        /// </summary>
+        public double InputLevelPercent { get; }
+
+        /// <summary>
+        /// Peak level in dBFS (clamped to [-60..0]).
+        /// </summary>
+        public double InputLevelDbFs { get; }
     }
 
     /// <summary>

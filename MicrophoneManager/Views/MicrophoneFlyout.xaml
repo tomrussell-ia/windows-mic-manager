@@ -75,7 +75,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Apps Using Microphone Section (TOP) -->
+            <!-- Header (tray: Apps using microphone, dock: Microphone) -->
             <Grid Grid.Row="0" Margin="4,0,4,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -83,11 +83,21 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
-                           Text="Apps using microphone"
                            FontSize="14"
                            FontWeight="SemiBold"
                            Foreground="#999999"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="Apps using microphone"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=IsDockedMode}" Value="True">
+                                    <Setter Property="Text" Value="Microphone"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
 
                 <!-- Dock / Undock -->
                 <Button Grid.Column="1"
@@ -104,57 +114,64 @@
                                Foreground="#999999"
                                VerticalAlignment="Center"/>
                 </Button>
+
             </Grid>
 
-            <!-- Active Sessions List - no max height, shows all apps -->
-            <ItemsControl Grid.Row="1"
-                          ItemsSource="{Binding ActiveSessions}"
-                          Visibility="{Binding HasActiveSessions, Converter={StaticResource BoolToVisibility}}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="#3D3D3D"
-                                CornerRadius="4"
-                                Padding="10,8"
-                                Margin="4,2">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+            <!-- Active Sessions List (scrolls only within this section) -->
+            <Grid Grid.Row="1"
+                Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ShowAppsSection, Converter={StaticResource BoolToVisibility}}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              MaxHeight="110">
+                    <ItemsControl ItemsSource="{Binding ActiveSessions}"
+                                  Visibility="{Binding HasActiveSessions, Converter={StaticResource BoolToVisibility}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#3D3D3D"
+                                        CornerRadius="4"
+                                        Padding="10,8"
+                                        Margin="4,2">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                                <!-- App Icon -->
-                                <Image Grid.Column="0"
-                                       Source="{Binding Icon}"
-                                       Width="20"
-                                       Height="20"
-                                       Margin="0,0,10,0"
-                                       VerticalAlignment="Center"/>
+                                        <!-- App Icon -->
+                                        <Image Grid.Column="0"
+                                               Source="{Binding Icon}"
+                                               Width="20"
+                                               Height="20"
+                                               Margin="0,0,10,0"
+                                               VerticalAlignment="Center"/>
 
-                                <!-- App Name -->
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding DisplayName}"
-                                           Foreground="White"
-                                           TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                                        <!-- App Name -->
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding DisplayName}"
+                                                   Foreground="White"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
 
-            <!-- No Apps Message -->
-            <TextBlock Grid.Row="1"
-                       Text="No apps currently using microphone"
-                       Foreground="#666666"
-                       FontStyle="Italic"
-                       Margin="4,4,0,0"
-                       Visibility="{Binding HasNoActiveSessions, Converter={StaticResource BoolToVisibility}}"/>
+                <!-- No Apps Message -->
+                <TextBlock Text="No apps currently using microphone"
+                           Foreground="#666666"
+                           FontStyle="Italic"
+                           Margin="4,4,0,0"
+                           Visibility="{Binding HasNoActiveSessions, Converter={StaticResource BoolToVisibility}}"/>
+            </Grid>
 
             <!-- Separator -->
             <Border Grid.Row="2"
                     Height="1"
                     Background="#404040"
-                    Margin="4,12,4,12"/>
+                    Margin="4,12,4,12"
+                    Visibility="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=ShowAppsSection, Converter={StaticResource BoolToVisibility}}"/>
 
             <!-- Microphone Selection Header (BOTTOM section) -->
             <TextBlock Grid.Row="3"
@@ -171,7 +188,7 @@
                      Background="Transparent"
                      BorderBrush="Transparent"
                      ItemContainerStyle="{StaticResource MicListItem}"
-                     MaxHeight="200"
+                     MaxHeight="160"
                      SelectionChanged="MicrophoneList_SelectionChanged"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
@@ -220,6 +237,8 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -237,7 +256,100 @@
                                VerticalAlignment="Center"
                                Margin="12,0,0,0"/>
 
-                    <Slider Grid.Row="1" Grid.ColumnSpan="2"
+                    <!-- Real-time input meter (dB-style) -->
+                    <Border Grid.Row="1" Grid.ColumnSpan="2"
+                            x:Name="MicMeterTrack"
+                            Height="8"
+                            CornerRadius="4"
+                            Background="{StaticResource MeterGradientBrush}"
+                            Margin="0,8,0,0"
+                            ClipToBounds="True"
+                            IsHitTestVisible="False">
+                        <Grid>
+                            <!-- Dim the inactive region (right side) so yellow/red only "shows" when you reach it -->
+                            <Border HorizontalAlignment="Left"
+                                    Background="#2D2D2D"
+                                    Opacity="0.70">
+                                <Border.Width>
+                                    <MultiBinding Converter="{StaticResource PercentToWidth}" ConverterParameter="remaining">
+                                        <Binding Path="CurrentMicInputLevelPercent" />
+                                        <Binding ElementName="MicMeterTrack" Path="ActualWidth" />
+                                    </MultiBinding>
+                                </Border.Width>
+                                <Border.RenderTransform>
+                                    <TranslateTransform>
+                                        <TranslateTransform.X>
+                                            <MultiBinding Converter="{StaticResource PercentToWidth}">
+                                                <Binding Path="CurrentMicInputLevelPercent" />
+                                                <Binding ElementName="MicMeterTrack" Path="ActualWidth" />
+                                            </MultiBinding>
+                                        </TranslateTransform.X>
+                                    </TranslateTransform>
+                                </Border.RenderTransform>
+                            </Border>
+
+                            <!-- Threshold markers (-20dB and -10dB) using 4*:1*:1* scale (-60..-20, -20..-10, -10..0) -->
+                            <Grid Opacity="0.55">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="1" Width="1" Background="#FFFFFF" HorizontalAlignment="Left"/>
+                                <Border Grid.Column="2" Width="1" Background="#FFFFFF" HorizontalAlignment="Left"/>
+                            </Grid>
+
+                            <!-- Peak-hold line (max hit, lingers then decays) -->
+                            <Border Width="2"
+                                    Background="#FFFFFF"
+                                    Opacity="0.9"
+                                    HorizontalAlignment="Left">
+                                <Border.RenderTransform>
+                                    <TranslateTransform>
+                                        <TranslateTransform.X>
+                                            <MultiBinding Converter="{StaticResource PercentToWidth}" ConverterParameter="2">
+                                                <Binding Path="PeakMicInputLevelPercent" />
+                                                <Binding ElementName="MicMeterTrack" Path="ActualWidth" />
+                                            </MultiBinding>
+                                        </TranslateTransform.X>
+                                    </TranslateTransform>
+                                </Border.RenderTransform>
+                            </Border>
+
+                            <!-- Thin indicator line at the current level -->
+                            <Border Width="1"
+                                    Background="#FFFFFF"
+                                    Opacity="0.75"
+                                    HorizontalAlignment="Left">
+                                <Border.RenderTransform>
+                                    <TranslateTransform>
+                                        <TranslateTransform.X>
+                                            <MultiBinding Converter="{StaticResource PercentToWidth}" ConverterParameter="1">
+                                                <Binding Path="CurrentMicInputLevelPercent" />
+                                                <Binding ElementName="MicMeterTrack" Path="ActualWidth" />
+                                            </MultiBinding>
+                                        </TranslateTransform.X>
+                                    </TranslateTransform>
+                                </Border.RenderTransform>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- dB scale under the meter (keeps the bar clear so the peak line is easy to see) -->
+                    <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,4,0,0" Opacity="0.75">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="-60" Foreground="#999999" FontSize="10" HorizontalAlignment="Left"/>
+                        <TextBlock Grid.Column="1" Text="-20" Foreground="#999999" FontSize="10" HorizontalAlignment="Left"/>
+                        <TextBlock Grid.Column="2" Text="-10" Foreground="#999999" FontSize="10" HorizontalAlignment="Left"/>
+                        <TextBlock Grid.Column="2" Text="0" Foreground="#999999" FontSize="10" HorizontalAlignment="Right"/>
+                    </Grid>
+
+                    <Slider Grid.Row="3" Grid.ColumnSpan="2"
                             Margin="0,8,0,0"
                             Minimum="0"
                             Maximum="100"
@@ -261,6 +373,6 @@
                     <TextBlock x:Name="MuteText" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
-        </Grid>
+            </Grid>
     </Border>
 </UserControl>
