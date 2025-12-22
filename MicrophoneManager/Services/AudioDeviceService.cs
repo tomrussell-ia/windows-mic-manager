@@ -13,16 +13,56 @@ public class AudioDeviceService : IDisposable
 {
     private readonly MMDeviceEnumerator _enumerator;
     private readonly DeviceNotificationClient _notificationClient;
+    private readonly object _defaultVolumeNotificationLock = new();
+    private string? _defaultCaptureDeviceIdWithVolumeNotifications;
+    private AudioEndpointVolume? _defaultCaptureEndpointVolume;
     private bool _disposed;
 
     public event EventHandler? DevicesChanged;
     public event EventHandler? DefaultDeviceChanged;
+    public event EventHandler<DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
 
     public AudioDeviceService()
     {
         _enumerator = new MMDeviceEnumerator();
         _notificationClient = new DeviceNotificationClient(this);
         _enumerator.RegisterEndpointNotificationCallback(_notificationClient);
+
+        // Track default microphone volume changes (e.g., changed by other apps)
+        UpdateDefaultMicrophoneVolumeNotificationSubscription();
+    }
+
+    /// <summary>
+    /// Sets the volume of the current default microphone (0-100).
+    /// </summary>
+    public void SetDefaultMicrophoneVolumePercent(double volumePercent)
+    {
+        var defaultId = GetDefaultDeviceId(Role.Console);
+        if (defaultId == null) return;
+
+        var clampedPercent = Math.Max(0.0, Math.Min(100.0, volumePercent));
+        var scalar = (float)(clampedPercent / 100.0);
+        SetMicrophoneVolumeLevelScalar(defaultId, scalar);
+    }
+
+    /// <summary>
+    /// Sets the volume scalar (0.0 - 1.0) for a specific microphone device.
+    /// </summary>
+    public void SetMicrophoneVolumeLevelScalar(string deviceId, float volumeLevelScalar)
+    {
+        var device = GetDeviceById(deviceId);
+        if (device?.AudioEndpointVolume == null) return;
+
+        var clampedScalar = Math.Max(0.0f, Math.Min(1.0f, volumeLevelScalar));
+
+        try
+        {
+            device.AudioEndpointVolume.MasterVolumeLevelScalar = clampedScalar;
+        }
+        catch
+        {
+            // Ignore failures (device could disappear, access denied, etc.)
+        }
     }
 
     /// <summary>
@@ -338,13 +378,88 @@ public class AudioDeviceService : IDisposable
 
     internal void OnDefaultDeviceChanged()
     {
+        UpdateDefaultMicrophoneVolumeNotificationSubscription();
         DefaultDeviceChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void UpdateDefaultMicrophoneVolumeNotificationSubscription()
+    {
+        lock (_defaultVolumeNotificationLock)
+        {
+            var defaultDeviceId = GetDefaultDeviceId(Role.Console);
+
+            if (_defaultCaptureDeviceIdWithVolumeNotifications == defaultDeviceId && _defaultCaptureEndpointVolume != null)
+            {
+                return;
+            }
+
+            if (_defaultCaptureEndpointVolume != null)
+            {
+                try
+                {
+                    _defaultCaptureEndpointVolume.OnVolumeNotification -= OnDefaultMicrophoneVolumeNotification;
+                }
+                catch { }
+
+                _defaultCaptureEndpointVolume = null;
+                _defaultCaptureDeviceIdWithVolumeNotifications = null;
+            }
+
+            if (defaultDeviceId == null) return;
+
+            var device = GetDeviceById(defaultDeviceId);
+            var endpointVolume = device?.AudioEndpointVolume;
+            if (endpointVolume == null) return;
+
+            _defaultCaptureDeviceIdWithVolumeNotifications = defaultDeviceId;
+            _defaultCaptureEndpointVolume = endpointVolume;
+
+            try
+            {
+                _defaultCaptureEndpointVolume.OnVolumeNotification += OnDefaultMicrophoneVolumeNotification;
+            }
+            catch
+            {
+                _defaultCaptureEndpointVolume = null;
+                _defaultCaptureDeviceIdWithVolumeNotifications = null;
+            }
+        }
+    }
+
+    private void OnDefaultMicrophoneVolumeNotification(AudioVolumeNotificationData data)
+    {
+        string? deviceId;
+        lock (_defaultVolumeNotificationLock)
+        {
+            deviceId = _defaultCaptureDeviceIdWithVolumeNotifications;
+        }
+
+        if (deviceId == null) return;
+
+        DefaultMicrophoneVolumeChanged?.Invoke(
+            this,
+            new DefaultMicrophoneVolumeChangedEventArgs(deviceId, data.MasterVolume, data.Muted));
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+
+        lock (_defaultVolumeNotificationLock)
+        {
+            if (_defaultCaptureEndpointVolume != null)
+            {
+                try
+                {
+                    _defaultCaptureEndpointVolume.OnVolumeNotification -= OnDefaultMicrophoneVolumeNotification;
+                }
+                catch { }
+
+                _defaultCaptureEndpointVolume = null;
+                _defaultCaptureDeviceIdWithVolumeNotifications = null;
+            }
+        }
 
         try
         {
@@ -353,6 +468,20 @@ public class AudioDeviceService : IDisposable
         catch { }
 
         _enumerator?.Dispose();
+    }
+
+    public sealed class DefaultMicrophoneVolumeChangedEventArgs : EventArgs
+    {
+        public DefaultMicrophoneVolumeChangedEventArgs(string deviceId, float volumeLevelScalar, bool isMuted)
+        {
+            DeviceId = deviceId;
+            VolumeLevelScalar = volumeLevelScalar;
+            IsMuted = isMuted;
+        }
+
+        public string DeviceId { get; }
+        public float VolumeLevelScalar { get; }
+        public bool IsMuted { get; }
     }
 
     /// <summary>

@@ -72,6 +72,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Apps Using Microphone Section (TOP) -->
@@ -186,8 +187,43 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
+            <!-- Mic Level Slider (0-100) -->
+            <Border Grid.Row="5"
+                    Background="#3D3D3D"
+                    CornerRadius="4"
+                    Padding="10,8"
+                    Margin="4,12,4,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               Text="Mic level"
+                               Foreground="#999999"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               Text="{Binding CurrentMicLevelPercent, StringFormat={}{0:0}%}"
+                               Foreground="#999999"
+                               VerticalAlignment="Center"
+                               Margin="12,0,0,0"/>
+
+                    <Slider Grid.Row="1" Grid.ColumnSpan="2"
+                            Margin="0,8,0,0"
+                            Minimum="0"
+                            Maximum="100"
+                            Value="{Binding CurrentMicLevelPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+            </Border>
+
             <!-- Mute Button -->
-            <Button Grid.Row="5"
+                <Button Grid.Row="6"
                     x:Name="MuteButton"
                     Style="{StaticResource ModernButton}"
                     Click="MuteButton_Click"

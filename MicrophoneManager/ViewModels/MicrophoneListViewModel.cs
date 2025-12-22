@@ -11,6 +11,7 @@ namespace MicrophoneManager.ViewModels;
 public partial class MicrophoneListViewModel : ObservableObject
 {
     private readonly AudioDeviceService _audioService;
+    private bool _suppressVolumeWrite;
 
     [ObservableProperty]
     private ObservableCollection<MicrophoneDevice> _microphones = new();
@@ -24,6 +25,9 @@ public partial class MicrophoneListViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<AudioSession> _activeSessions = new();
 
+    [ObservableProperty]
+    private double _currentMicLevelPercent;
+
     public bool HasActiveSessions => ActiveSessions.Count > 0;
     public bool HasNoActiveSessions => ActiveSessions.Count == 0;
 
@@ -36,6 +40,30 @@ public partial class MicrophoneListViewModel : ObservableObject
             Application.Current?.Dispatcher?.BeginInvoke(RefreshDevices);
         _audioService.DefaultDeviceChanged += (s, e) =>
             Application.Current?.Dispatcher?.BeginInvoke(RefreshDevices);
+
+        _audioService.DefaultMicrophoneVolumeChanged += (s, e) =>
+            Application.Current?.Dispatcher?.BeginInvoke(() =>
+            {
+                // Only reflect live updates for the current default microphone.
+                var defaultId = _audioService.GetDefaultDeviceId(NAudio.CoreAudioApi.Role.Console);
+                if (defaultId == null || e.DeviceId != defaultId) return;
+
+                _suppressVolumeWrite = true;
+                try
+                {
+                    CurrentMicLevelPercent = e.VolumeLevelScalar * 100.0;
+                    IsMuted = e.IsMuted;
+
+                    if (App.TrayViewModel != null)
+                    {
+                        App.TrayViewModel.IsMuted = IsMuted;
+                    }
+                }
+                finally
+                {
+                    _suppressVolumeWrite = false;
+                }
+            });
 
         // Initial load
         RefreshDevices();
@@ -54,8 +82,27 @@ public partial class MicrophoneListViewModel : ObservableObject
         SelectedMicrophone = Microphones.FirstOrDefault(m => m.IsDefault);
         IsMuted = _audioService.IsDefaultMicrophoneMuted();
 
+        _suppressVolumeWrite = true;
+        try
+        {
+            // Reflect the current default microphone level into the UI (0-100)
+            CurrentMicLevelPercent = (SelectedMicrophone?.VolumeLevel ?? 1.0f) * 100.0;
+        }
+        finally
+        {
+            _suppressVolumeWrite = false;
+        }
+
         // Refresh active sessions (apps using microphone)
         RefreshActiveSessions();
+    }
+
+    partial void OnCurrentMicLevelPercentChanged(double value)
+    {
+        if (_suppressVolumeWrite) return;
+
+        // Slider drives the current default microphone volume.
+        _audioService.SetDefaultMicrophoneVolumePercent(value);
     }
 
     public void RefreshActiveSessions()
