@@ -28,13 +28,23 @@ cd MicrophoneManager
 dotnet build
 ```
 
+Note: `dotnet build` produces a normal development layout (lots of files). For distribution as a single `.exe`, use `dotnet publish`.
+
 ### Build portable EXE (Release)
 
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
-The output will be in `MicrophoneManager\bin\Release\net8.0-windows\win-x64\publish\`
+For this repo, Release publishing is configured to produce a **single, self-contained** `MicrophoneManager.exe`.
+
+Recommended (uses the checked-in publish profile):
+
+```bash
+dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
+```
+
+The output will be in `publish\win-x64-singlefile\`.
 
 ## Usage
 
