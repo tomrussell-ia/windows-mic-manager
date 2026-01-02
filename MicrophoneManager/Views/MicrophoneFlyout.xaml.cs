@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using MicrophoneManager.Models;
 using MicrophoneManager.ViewModels;
 using UserControl = System.Windows.Controls.UserControl;
 
@@ -9,23 +8,11 @@ namespace MicrophoneManager.Views;
 
 public partial class MicrophoneFlyout : UserControl
 {
-    public static readonly DependencyProperty ShowAppsSectionProperty = DependencyProperty.Register(
-        nameof(ShowAppsSection),
-        typeof(bool),
-        typeof(MicrophoneFlyout),
-        new PropertyMetadata(true));
-
     public static readonly DependencyProperty IsDockedModeProperty = DependencyProperty.Register(
         nameof(IsDockedMode),
         typeof(bool),
         typeof(MicrophoneFlyout),
         new PropertyMetadata(false));
-
-    public bool ShowAppsSection
-    {
-        get => (bool)GetValue(ShowAppsSectionProperty);
-        set => SetValue(ShowAppsSectionProperty, value);
-    }
 
     public bool IsDockedMode
     {
@@ -144,15 +131,6 @@ public partial class MicrophoneFlyout : UserControl
     {
         MuteIcon.Text = ViewModel.IsMuted ? "\uE74F" : "\uE720";
         MuteText.Text = ViewModel.IsMuted ? "Unmute Microphone" : "Mute Microphone";
-    }
-
-    private void MicrophoneList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (MicrophoneList.SelectedItem is MicrophoneDevice device && !device.IsDefault)
-        {
-            ViewModel.SelectMicrophoneCommand.Execute(device);
-            MicrophoneList.SelectedItem = null; // Clear selection
-        }
     }
 
     private void MuteButton_Click(object sender, RoutedEventArgs e)

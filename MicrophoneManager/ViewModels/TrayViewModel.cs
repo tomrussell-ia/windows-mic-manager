@@ -9,7 +9,7 @@ namespace MicrophoneManager.ViewModels;
 
 public partial class TrayViewModel : ObservableObject
 {
-    private readonly AudioDeviceService _audioService;
+    private readonly IAudioDeviceService _audioService;
     private readonly Action<bool> _updateIconCallback;
     private readonly Dispatcher _dispatcher;
 
@@ -24,7 +24,7 @@ public partial class TrayViewModel : ObservableObject
 
     public string StartupMenuText => IsStartupEnabled ? "✓ Start with Windows" : "Start with Windows";
 
-    public TrayViewModel(AudioDeviceService audioService, Action<bool> updateIconCallback)
+    public TrayViewModel(IAudioDeviceService audioService, Action<bool> updateIconCallback)
     {
         _audioService = audioService;
         _updateIconCallback = updateIconCallback;

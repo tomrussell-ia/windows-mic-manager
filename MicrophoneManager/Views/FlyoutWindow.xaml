@@ -20,6 +20,6 @@
             <DropShadowEffect BlurRadius="15" ShadowDepth="2" Opacity="0.5"/>
         </Border.Effect>
 
-        <local:MicrophoneFlyout x:Name="Flyout" ShowAppsSection="False" IsDockedMode="True"/>
+        <local:MicrophoneFlyout x:Name="Flyout" IsDockedMode="True"/>
     </Border>
 </Window>
