@@ -1,0 +1,3 @@
+# GitHub Copilot Instructions
+
+For comprehensive project documentation, architecture patterns, and coding guidelines, see [AGENT.md](../AGENT.md) in the repository root.
