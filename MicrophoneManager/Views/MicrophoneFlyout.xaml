@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:MicrophoneManager.Views"
              xmlns:models="clr-namespace:MicrophoneManager.Models"
-             Width="320"
+             MinWidth="370"
              Background="#2D2D2D">
 
     <UserControl.Resources>
@@ -11,7 +11,7 @@
         <Style x:Key="MicListItem" TargetType="ListBoxItem">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Padding" Value="10,8"/>
             <Setter Property="Margin" Value="4,2"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -39,7 +39,7 @@
             <Setter Property="Background" Value="#3D3D3D"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Padding" Value="14,8"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -61,9 +61,86 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Small icon-only action buttons used inside microphone cards -->
+        <Style x:Key="IconActionButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- Compact slider used inside microphone cards -->
+        <Style x:Key="CompactSlider" TargetType="Slider">
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="MinHeight" Value="18"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid SnapsToDevicePixels="True">
+                            <Track x:Name="PART_Track" VerticalAlignment="Center">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge"
+                                                  Background="#0078D4"
+                                                  BorderThickness="0">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        Height="4"
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge"
+                                                  Background="#2D2D2D"
+                                                  BorderThickness="0">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        Height="4"
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="14" Height="14">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#FFFFFF"
+                                                        BorderBrush="#AAAAAA"
+                                                        BorderThickness="1"
+                                                        CornerRadius="2" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
-    <Border CornerRadius="8" Padding="12">
+    <Border>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="8"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsDockedMode, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                        <Setter Property="CornerRadius" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -74,7 +151,7 @@
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <Grid Grid.Row="0" Margin="4,0,4,8">
+            <Grid Grid.Row="0" Margin="2,0,2,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -92,7 +169,7 @@
                         x:Name="DockButton"
                         Background="Transparent"
                         BorderBrush="Transparent"
-                        Padding="6"
+                    Padding="4"
                         Click="DockButton_Click"
                         ToolTip="Dock / Undock">
                     <TextBlock x:Name="DockIcon"
@@ -105,29 +182,26 @@
 
             </Grid>
 
-            <!-- Microphone Selection Header -->
-            <TextBlock Grid.Row="1"
-                       Text="Select Microphone"
-                       FontSize="16"
-                       FontWeight="SemiBold"
-                       Foreground="White"
-                       Margin="4,0,0,8"/>
+            <!-- Microphone Selection Header removed per UX update -->
 
             <!-- Microphone List -->
-            <ListBox Grid.Row="2"
-                     x:Name="MicrophoneList"
-                     ItemsSource="{Binding Microphones}"
-                     Background="Transparent"
-                     BorderBrush="Transparent"
-                     ItemContainerStyle="{StaticResource MicListItem}"
-                     MaxHeight="360"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
+            <ScrollViewer Grid.Row="2"
+                          MaxHeight="360"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <ListBox x:Name="MicrophoneList"
+                         ItemsSource="{Binding Microphones}"
+                         Background="Transparent"
+                         BorderBrush="Transparent"
+                         ItemContainerStyle="{StaticResource MicListItem}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
                         <Border Background="#3D3D3D"
                                 CornerRadius="6"
-                                Padding="10"
-                                Margin="4,4,4,8">
+                            Padding="6"
+                            Margin="3,2,3,4">
                             <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -135,50 +209,78 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Column="0"
+                                    <TextBlock Grid.RowSpan="2"
+                                               Grid.Column="0"
                                                Text="&#xE720;"
                                                FontFamily="Segoe MDL2 Assets"
                                                FontSize="18"
                                                VerticalAlignment="Center"
-                                               Margin="0,0,10,0"/>
+                                               Margin="0,0,6,0"/>
 
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{Binding Name}"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="White"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding FormatTag}"
-                                                   Foreground="#AAAAAA"
-                                                   FontSize="11"/>
+                                    <TextBlock Grid.Row="0"
+                                               Grid.Column="1"
+                                               Text="{Binding Name}"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center"/>
+
+                                    <!-- Default/Comms actions (right, aligned with title) -->
+                                    <StackPanel Grid.Row="0"
+                                                Grid.Column="2"
+                                                Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <Button Command="{Binding SetDefaultCommand}"
+                                                Margin="0,0,6,0"
+                                                ToolTip="Set Default">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource IconActionButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsDefault}" Value="True">
+                                                            <Setter Property="Background" Value="#1E88E5"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <TextBlock FontFamily="Segoe MDL2 Assets"
+                                                       Text="&#xE720;"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
+
+                                        <Button Command="{Binding SetDefaultCommunicationCommand}"
+                                                ToolTip="Set Communications">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource IconActionButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsDefaultCommunication}" Value="True">
+                                                            <Setter Property="Background" Value="#6A1B9A"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <TextBlock FontFamily="Segoe MDL2 Assets"
+                                                       Text="&#xE8BD;"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
                                     </StackPanel>
 
-                                    <StackPanel Grid.Column="2"
-                                                Orientation="Vertical"
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Center"
-                                                Spacing="4">
-                                        <Border Background="#1E88E5"
-                                                CornerRadius="4"
-                                                Padding="6,2"
-                                                Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}">
-                                            <TextBlock Text="Default"
-                                                       Foreground="White"
-                                                       FontSize="11"/>
-                                        </Border>
-                                        <Border Background="#6A1B9A"
-                                                CornerRadius="4"
-                                                Padding="6,2"
-                                                Visibility="{Binding IsDefaultCommunication, Converter={StaticResource BoolToVisibility}}">
-                                            <TextBlock Text="Communications"
-                                                       Foreground="White"
-                                                       FontSize="11"/>
-                                        </Border>
-                                    </StackPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Grid.Column="1"
+                                               Text="{Binding FormatTag}"
+                                               Foreground="#AAAAAA"
+                                               FontSize="11"/>
                                 </Grid>
 
-                                <Grid Margin="0,8,0,0">
+                                <Grid Margin="0,4,0,0">
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
@@ -202,7 +304,7 @@
                                             Height="8"
                                             CornerRadius="4"
                                             Background="{StaticResource MeterGradientBrush}"
-                                            Margin="0,6,0,0"
+                                            Margin="0,3,0,0"
                                             ClipToBounds="True"
                                             IsHitTestVisible="False">
                                         <Grid>
@@ -260,58 +362,74 @@
                                             </Border>
                                         </Grid>
                                     </Border>
+
+                                    <!-- Simple scale under the meter (0..100) -->
+                                    <Grid Grid.Row="2" Margin="0,1,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="7"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <UniformGrid Grid.Row="0" Columns="6" HorizontalAlignment="Stretch">
+                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Left"/>
+                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
+                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
+                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
+                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
+                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Right"/>
+                                        </UniformGrid>
+
+                                        <UniformGrid Grid.Row="1" Columns="6" HorizontalAlignment="Stretch">
+                                            <TextBlock Text="0" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Left"/>
+                                            <TextBlock Text="20" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="40" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="60" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="80" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="100" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Right"/>
+                                        </UniformGrid>
+                                    </Grid>
                                 </Grid>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0" VerticalAlignment="Center" Spacing="8">
-                                    <Slider Width="170"
+                                <Grid Margin="0,4,0,0" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Mute (left, aligned with slider) -->
+                                    <Button Grid.Column="0"
+                                            Style="{StaticResource IconActionButton}"
+                                            Command="{Binding ToggleMuteCommand}"
+                                            Margin="0,0,6,0"
+                                            ToolTip="{Binding IsMuted, Converter={StaticResource MuteStateToLabel}}">
+                                        <TextBlock FontFamily="Segoe MDL2 Assets"
+                                                   Text="{Binding IsMuted, Converter={StaticResource MuteStateToIcon}}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Button>
+
+                                    <Slider Grid.Column="1"
                                             Minimum="0"
                                             Maximum="100"
+                                            HorizontalAlignment="Stretch"
+                                            Style="{StaticResource CompactSlider}"
                                             Value="{Binding VolumePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                </Grid>
 
-                                    <Button Style="{StaticResource ModernButton}"
-                                            Command="{Binding ToggleMuteCommand}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                       FontSize="12"
-                                                       Margin="0,0,4,0"
-                                                       Text="{Binding IsMuted, Converter={StaticResource MuteStateToIcon}}"/>
-                                            <TextBlock Text="{Binding IsMuted, Converter={StaticResource MuteStateToLabel}}"/>
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
 
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0" Spacing="6">
-                                    <Button Style="{StaticResource ModernButton}" Content="Default" Command="{Binding SetDefaultCommand}"/>
-                                    <Button Style="{StaticResource ModernButton}" Content="Communications" Command="{Binding SetDefaultCommunicationCommand}"/>
-                                    <Button Style="{StaticResource ModernButton}" Content="Set Both" Command="{Binding SetBothCommand}"/>
-                                </StackPanel>
                             </StackPanel>
                         </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </ScrollViewer>
 
             <TextBlock Grid.Row="3"
                        Text="No microphones detected"
                        Foreground="#AAAAAA"
-                       Margin="4,8,0,0"
+                       Margin="4,6,0,0"
                        Visibility="{Binding HasNoMicrophones, Converter={StaticResource BoolToVisibility}}"/>
-            <!-- Mute Button -->
-            <Button Grid.Row="4"
-                    x:Name="MuteButton"
-                    Style="{StaticResource ModernButton}"
-                    Click="MuteButton_Click"
-                    Margin="0,12,0,0"
-                    HorizontalAlignment="Stretch">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="MuteIcon"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="14"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"/>
-                    <TextBlock x:Name="MuteText" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
-            </Grid>
-    </Border>
+            <!-- Global mute button removed; per-mic mute remains on each card -->
+                </Grid>
+            </Border>
 </UserControl>

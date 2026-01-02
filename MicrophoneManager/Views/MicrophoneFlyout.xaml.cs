@@ -43,7 +43,7 @@ public partial class MicrophoneFlyout : UserControl
         {
             if (e.PropertyName == nameof(ViewModel.IsMuted))
             {
-                UpdateMuteButton();
+                // Global mute button removed; no UI to update here.
             }
         };
 
@@ -53,13 +53,9 @@ public partial class MicrophoneFlyout : UserControl
             if (this.IsVisible)
             {
                 ViewModel.RefreshDevices();
-                UpdateMuteButton();
                 UpdateDockButton();
             }
         };
-
-        // Initial mute button state
-        UpdateMuteButton();
 
         // Initial dock button state
         UpdateDockButton();
@@ -127,14 +123,4 @@ public partial class MicrophoneFlyout : UserControl
         UpdateDockButton();
     }
 
-    private void UpdateMuteButton()
-    {
-        MuteIcon.Text = ViewModel.IsMuted ? "\uE74F" : "\uE720";
-        MuteText.Text = ViewModel.IsMuted ? "Unmute Microphone" : "Mute Microphone";
-    }
-
-    private void MuteButton_Click(object sender, RoutedEventArgs e)
-    {
-        ViewModel.ToggleMuteCommand.Execute(null);
-    }
 }

@@ -20,6 +20,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     private string? _defaultCaptureDeviceIdWithInputMeter;
     private WasapiCapture? _defaultCapture;
     private DateTime _lastInputMeterRaisedAtUtc = DateTime.MinValue;
+    private double _accumulatedPeak = 0.0;
     private bool _disposed;
 
     public event EventHandler? DevicesChanged;
@@ -258,9 +259,13 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
             var meter = device.AudioMeterInformation;
             if (meter == null) return 0;
 
+            // AudioMeterInformation reports linear peak amplitude (0..1).
+            // Map through OBS-style LOG dB->deflection for a meter that behaves like OBS.
             var value = meter.MasterPeakValue;
-            value = Math.Max(0, Math.Min(1.0, value));
-            return value * 100.0;
+            value = MathF.Max(0f, MathF.Min(1f, value));
+
+            var dbFs = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(value));
+            return ObsMeterMath.DbToPercent(dbFs);
         }
         catch
         {
@@ -363,19 +368,23 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
         if (deviceId == null || capture == null) return;
 
-        // Throttle UI-facing events to ~30Hz.
+        // Accumulate peak across buffers so we don't miss transients.
+        var bufferPeak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
+        _accumulatedPeak = Math.Max(_accumulatedPeak, bufferPeak);
+
+        // Throttle UI-facing events to ~60Hz.
         var nowUtc = DateTime.UtcNow;
-        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 33)
+        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 16)
         {
             return;
         }
 
-        var peak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
+        var peak = _accumulatedPeak;
+        _accumulatedPeak = 0.0;
 
-        // Convert to dBFS and map [-60dB..0dB] => [0..100]
-        var peakDb = peak <= 0 ? -60.0 : 20.0 * Math.Log10(Math.Max(peak, 1e-20));
-        peakDb = Math.Max(-60.0, Math.Min(0.0, peakDb));
-        var percent = (peakDb + 60.0) / 60.0 * 100.0;
+        // Convert to dBFS and map using OBS LOG dB->deflection.
+        var peakDb = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(peak));
+        var percent = ObsMeterMath.DbToPercent(peakDb);
 
         _lastInputMeterRaisedAtUtc = nowUtc;
         DefaultMicrophoneInputLevelChanged?.Invoke(

@@ -11,14 +11,22 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     private bool _suppressVolumeWrite;
     private DateTime _peakHoldUntilUtc;
     private DateTime _lastPeakTickUtc;
+    private DateTime _lastMeterUpdateUtc;
 
-    private const int PeakHoldMilliseconds = 750;
-    private const double PeakDecayPercentPerSecond = 35.0;
+    private double _peakDbFs = -96.0;
+    private double _smoothedDbFs = -96.0;
+
+    private const int PeakHoldMilliseconds = 5000;
+    private const double PeakDecayDbPerSecond = 20.0;
+
+    // OBS-style ballistics: instant attack, exponential release (~300ms time constant).
+    private const double MeterReleaseTimeMs = 300.0;
 
     public MicrophoneEntryViewModel(MicrophoneDevice device, IAudioDeviceService audioService)
     {
         _audioService = audioService;
         _lastPeakTickUtc = DateTime.UtcNow;
+        _lastMeterUpdateUtc = DateTime.UtcNow;
         UpdateFrom(device);
     }
 
@@ -55,7 +63,7 @@ public partial class MicrophoneEntryViewModel : ObservableObject
         IsDefault = device.IsDefault;
         IsDefaultCommunication = device.IsDefaultCommunication;
         IsMuted = device.IsMuted;
-        ApplyVolumeFromSystem(device.VolumeLevel * 100.0);
+        ApplyVolumeFromSystem(Math.Round(device.VolumeLevel * 100.0, 2));
         FormatTag = device.FormatTag;
         UpdateMeter(device.InputLevelPercent);
     }
@@ -63,11 +71,31 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     public void UpdateMeter(double inputPercent)
     {
         var clamped = Math.Max(0, Math.Min(100.0, inputPercent));
-        InputLevelPercent = clamped;
         var nowUtc = DateTime.UtcNow;
+        var dtMs = (nowUtc - _lastMeterUpdateUtc).TotalMilliseconds;
+        _lastMeterUpdateUtc = nowUtc;
 
-        if (clamped >= PeakLevelPercent)
+        // Interpret UI percent as OBS deflection (0..100) and run peak-hold/decay in dB.
+        var inputDbFs = Services.ObsMeterMath.PercentToDb(clamped);
+
+        // OBS-style ballistics: instant attack, exponential release.
+        if (inputDbFs >= _smoothedDbFs)
         {
+            _smoothedDbFs = inputDbFs;
+        }
+        else if (dtMs > 0)
+        {
+            var alpha = 1.0 - Math.Exp(-dtMs / MeterReleaseTimeMs);
+            _smoothedDbFs += (inputDbFs - _smoothedDbFs) * alpha;
+        }
+
+        var smoothedPercent = Services.ObsMeterMath.DbToPercent(_smoothedDbFs);
+        InputLevelPercent = smoothedPercent;
+
+        // Peak hold tracks the RAW input (not smoothed) so transients register.
+        if (inputDbFs >= _peakDbFs)
+        {
+            _peakDbFs = inputDbFs;
             PeakLevelPercent = clamped;
             _peakHoldUntilUtc = nowUtc.AddMilliseconds(PeakHoldMilliseconds);
         }
@@ -83,14 +111,17 @@ public partial class MicrophoneEntryViewModel : ObservableObject
         if (dt.TotalSeconds <= 0) return;
         if (nowUtc <= _peakHoldUntilUtc) return;
 
-        var decay = PeakDecayPercentPerSecond * dt.TotalSeconds;
-        var newPeak = PeakLevelPercent - decay;
-        newPeak = Math.Max(InputLevelPercent, newPeak);
-        newPeak = Math.Max(0.0, Math.Min(100.0, newPeak));
+        // Decay the peak in dB/sec, then convert back to UI deflection percent.
+        _peakDbFs -= PeakDecayDbPerSecond * dt.TotalSeconds;
 
-        if (Math.Abs(newPeak - PeakLevelPercent) > 0.001)
+        var inputDbFs = Services.ObsMeterMath.PercentToDb(InputLevelPercent);
+        _peakDbFs = Math.Max(inputDbFs, _peakDbFs);
+        _peakDbFs = Services.ObsMeterMath.ClampMeterDb(_peakDbFs);
+
+        var newPeakPercent = Services.ObsMeterMath.DbToPercent(_peakDbFs);
+        if (Math.Abs(newPeakPercent - PeakLevelPercent) > 0.001)
         {
-            PeakLevelPercent = newPeak;
+            PeakLevelPercent = newPeakPercent;
         }
     }
 

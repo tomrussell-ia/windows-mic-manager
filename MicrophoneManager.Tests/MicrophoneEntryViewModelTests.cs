@@ -34,9 +34,11 @@ public class MicrophoneEntryViewModelTests
         Assert.Equal(80, viewModel.PeakLevelPercent);
 
         viewModel.UpdateMeter(20);
-        viewModel.TickPeak(DateTime.UtcNow.AddSeconds(1));
+        // Peak hold is ~5s; decay should start after that.
+        viewModel.TickPeak(DateTime.UtcNow.AddSeconds(6));
 
-        Assert.InRange(viewModel.PeakLevelPercent, 20, 60);
+        // Peak should decay toward current level after hold expires.
+        Assert.InRange(viewModel.PeakLevelPercent, 20, 70);
     }
 
     [Fact]

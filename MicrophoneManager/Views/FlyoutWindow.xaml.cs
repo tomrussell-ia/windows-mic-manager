@@ -10,6 +10,15 @@ public partial class FlyoutWindow : Window
     {
         InitializeComponent();
 
+        // Prevent the docked window from growing off-screen when many devices exist.
+        // The content will scroll instead (handled in MicrophoneFlyout).
+        try
+        {
+            var workArea = SystemParameters.WorkArea;
+            MaxHeight = Math.Max(200, workArea.Height - 24);
+        }
+        catch { }
+
         // Close on Escape key
         this.KeyDown += (s, e) =>
         {
