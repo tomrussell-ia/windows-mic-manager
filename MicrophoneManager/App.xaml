@@ -10,6 +10,8 @@
             <!-- Converters -->
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
             <converters:PercentToWidthConverter x:Key="PercentToWidth"/>
+            <converters:MuteStateToIconConverter x:Key="MuteStateToIcon"/>
+            <converters:MuteStateToLabelConverter x:Key="MuteStateToLabel"/>
 
             <!-- Modern Windows 11 style colors -->
             <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>

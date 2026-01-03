@@ -8,7 +8,7 @@ namespace MicrophoneManager;
 
 public partial class MainWindow : Window
 {
-    public TrayViewModel ViewModel { get; }
+    public TrayViewModel ViewModel { get; } = null!;
 
     public MainWindow()
     {

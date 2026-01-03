@@ -1,9 +1,4 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
@@ -11,7 +6,7 @@ using MicrophoneManager.Models;
 
 namespace MicrophoneManager.Services;
 
-public class AudioDeviceService : IDisposable
+public class AudioDeviceService : IDisposable, IAudioDeviceService
 {
     private static readonly Guid SubtypePcm = new("00000001-0000-0010-8000-00AA00389B71");
     private static readonly Guid SubtypeIeeeFloat = new("00000003-0000-0010-8000-00AA00389B71");
@@ -25,6 +20,7 @@ public class AudioDeviceService : IDisposable
     private string? _defaultCaptureDeviceIdWithInputMeter;
     private WasapiCapture? _defaultCapture;
     private DateTime _lastInputMeterRaisedAtUtc = DateTime.MinValue;
+    private double _accumulatedPeak = 0.0;
     private bool _disposed;
 
     public event EventHandler? DevicesChanged;
@@ -96,7 +92,9 @@ public class AudioDeviceService : IDisposable
                 IsDefault = device.ID == defaultId,
                 IsDefaultCommunication = device.ID == defaultCommId,
                 IsMuted = GetDeviceMuteState(device),
-                VolumeLevel = GetDeviceVolume(device)
+                VolumeLevel = GetDeviceVolume(device),
+                FormatTag = GetDeviceFormat(device),
+                InputLevelPercent = GetDeviceInputLevel(device)
             };
             devices.Add(mic);
         }
@@ -137,7 +135,17 @@ public class AudioDeviceService : IDisposable
     /// </summary>
     public void SetDefaultMicrophone(string deviceId)
     {
-        PolicyConfigService.SetDefaultDeviceForAllRoles(deviceId);
+        SetMicrophoneForRole(deviceId, Role.Console);
+        SetMicrophoneForRole(deviceId, Role.Communications);
+    }
+
+    public void SetMicrophoneForRole(string deviceId, Role role)
+    {
+        var roleToSet = role == Role.Console
+            ? PolicyConfigService.ERole.eConsole
+            : PolicyConfigService.ERole.eCommunications;
+
+        PolicyConfigService.SetDefaultDevice(deviceId, roleToSet);
     }
 
     /// <summary>
@@ -182,172 +190,6 @@ public class AudioDeviceService : IDisposable
         return IsMuted(defaultId);
     }
 
-    /// <summary>
-    /// Gets all active audio sessions on capture devices (apps using the microphone).
-    /// </summary>
-    public List<AudioSession> GetActiveMicrophoneSessions()
-    {
-        var sessions = new List<AudioSession>();
-
-        try
-        {
-            // Get all capture devices and check sessions on each
-            foreach (var device in _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
-            {
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine($"Checking sessions on device: {device.FriendlyName}");
-
-                    var sessionManager = device.AudioSessionManager;
-                    if (sessionManager?.Sessions == null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"  No session manager or sessions for {device.FriendlyName}");
-                        continue;
-                    }
-
-                    System.Diagnostics.Debug.WriteLine($"  Found {sessionManager.Sessions.Count} sessions");
-
-                    for (int i = 0; i < sessionManager.Sessions.Count; i++)
-                    {
-                        try
-                        {
-                            var session = sessionManager.Sessions[i];
-                            if (session == null) continue;
-
-                            var state = session.State;
-                            var processId = session.GetProcessID;
-                            var isSystemSound = session.IsSystemSoundsSession;
-
-                            System.Diagnostics.Debug.WriteLine($"  Session {i}: PID={processId}, State={state}, IsSystemSound={isSystemSound}");
-
-                            // Include Active and Inactive sessions (apps that have mic open)
-                            // Expired sessions are ones that were closed
-                            bool isRelevant = state == AudioSessionState.AudioSessionStateActive ||
-                                              state == AudioSessionState.AudioSessionStateInactive;
-
-                            if (isRelevant && !isSystemSound && processId > 0)
-                            {
-                                var audioSession = CreateAudioSession(processId, isSystemSound);
-                                if (audioSession != null)
-                                {
-                                    audioSession.IsActive = (state == AudioSessionState.AudioSessionStateActive);
-                                    sessions.Add(audioSession);
-                                    System.Diagnostics.Debug.WriteLine($"    Added session for PID {processId}");
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error reading session {i}: {ex.Message}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error accessing sessions on device {device.FriendlyName}: {ex.Message}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error enumerating capture devices for sessions: {ex.Message}");
-        }
-
-        System.Diagnostics.Debug.WriteLine($"Total sessions found: {sessions.Count}");
-
-        // Remove duplicates (same process might appear on multiple devices)
-        return sessions.DistinctBy(s => s.ProcessId).ToList();
-    }
-
-    private AudioSession? CreateAudioSession(uint processId, bool isSystemSound)
-    {
-        try
-        {
-            var process = Process.GetProcessById((int)processId);
-            var displayName = GetProcessDisplayName(process);
-            var icon = GetProcessIcon(process);
-
-            return new AudioSession
-            {
-                ProcessId = processId,
-                ProcessName = process.ProcessName,
-                DisplayName = displayName,
-                Icon = icon,
-                IsActive = true,
-                IsSystemSound = isSystemSound
-            };
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error creating audio session for PID {processId}: {ex.Message}");
-            return null;
-        }
-    }
-
-    private static string GetProcessDisplayName(Process process)
-    {
-        try
-        {
-            // Try to get the main window title first
-            if (!string.IsNullOrWhiteSpace(process.MainWindowTitle))
-            {
-                return process.MainWindowTitle;
-            }
-
-            // Try to get the file description
-            var module = process.MainModule;
-            if (module?.FileVersionInfo?.FileDescription != null &&
-                !string.IsNullOrWhiteSpace(module.FileVersionInfo.FileDescription))
-            {
-                return module.FileVersionInfo.FileDescription;
-            }
-
-            // Fall back to process name
-            return process.ProcessName;
-        }
-        catch
-        {
-            return process.ProcessName;
-        }
-    }
-
-    private static ImageSource? GetProcessIcon(Process process)
-    {
-        try
-        {
-            var module = process.MainModule;
-            if (module?.FileName == null) return null;
-
-            using var icon = System.Drawing.Icon.ExtractAssociatedIcon(module.FileName);
-            if (icon == null) return null;
-
-            // Convert System.Drawing.Icon to WPF ImageSource
-            var bitmap = icon.ToBitmap();
-            var hBitmap = bitmap.GetHbitmap();
-            try
-            {
-                return Imaging.CreateBitmapSourceFromHBitmap(
-                    hBitmap,
-                    IntPtr.Zero,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-            }
-            finally
-            {
-                DeleteObject(hBitmap);
-                bitmap.Dispose();
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error getting icon for process {process.ProcessName}: {ex.Message}");
-            return null;
-        }
-    }
-
-    [System.Runtime.InteropServices.DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr hObject);
-
     private MMDevice? GetDeviceById(string deviceId)
     {
         try
@@ -381,6 +223,53 @@ public class AudioDeviceService : IDisposable
         catch
         {
             return 1.0f;
+        }
+    }
+
+    private static string GetDeviceFormat(MMDevice device)
+    {
+        try
+        {
+            var format = device.AudioClient?.MixFormat;
+            if (format == null) return "Unknown format";
+
+            var sampleRateKhz = format.SampleRate / 1000.0;
+            var bits = format.BitsPerSample;
+            var channels = format.Channels;
+
+            var channelLabel = channels switch
+            {
+                1 => "Mono",
+                2 => "Stereo",
+                _ => $"{channels}-ch"
+            };
+
+            return $"{sampleRateKhz:0.#} kHz {bits}-bit {channelLabel}";
+        }
+        catch
+        {
+            return "Unknown format";
+        }
+    }
+
+    private static double GetDeviceInputLevel(MMDevice device)
+    {
+        try
+        {
+            var meter = device.AudioMeterInformation;
+            if (meter == null) return 0;
+
+            // AudioMeterInformation reports linear peak amplitude (0..1).
+            // Map through OBS-style LOG dB->deflection for a meter that behaves like OBS.
+            var value = meter.MasterPeakValue;
+            value = MathF.Max(0f, MathF.Min(1f, value));
+
+            var dbFs = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(value));
+            return ObsMeterMath.DbToPercent(dbFs);
+        }
+        catch
+        {
+            return 0;
         }
     }
 
@@ -479,19 +368,23 @@ public class AudioDeviceService : IDisposable
 
         if (deviceId == null || capture == null) return;
 
-        // Throttle UI-facing events to ~30Hz.
+        // Accumulate peak across buffers so we don't miss transients.
+        var bufferPeak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
+        _accumulatedPeak = Math.Max(_accumulatedPeak, bufferPeak);
+
+        // Throttle UI-facing events to ~60Hz.
         var nowUtc = DateTime.UtcNow;
-        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 33)
+        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 16)
         {
             return;
         }
 
-        var peak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
+        var peak = _accumulatedPeak;
+        _accumulatedPeak = 0.0;
 
-        // Convert to dBFS and map [-60dB..0dB] => [0..100]
-        var peakDb = peak <= 0 ? -60.0 : 20.0 * Math.Log10(Math.Max(peak, 1e-20));
-        peakDb = Math.Max(-60.0, Math.Min(0.0, peakDb));
-        var percent = (peakDb + 60.0) / 60.0 * 100.0;
+        // Convert to dBFS and map using OBS LOG dB->deflection.
+        var peakDb = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(peak));
+        var percent = ObsMeterMath.DbToPercent(peakDb);
 
         _lastInputMeterRaisedAtUtc = nowUtc;
         DefaultMicrophoneInputLevelChanged?.Invoke(
@@ -776,7 +669,7 @@ public class AudioDeviceService : IDisposable
 
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key)
         {
-            // Could track mute/volume changes here if needed
+            _service.OnDevicesChanged();
         }
     }
 }

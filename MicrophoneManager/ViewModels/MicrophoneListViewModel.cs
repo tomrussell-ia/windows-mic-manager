@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,7 +12,7 @@ namespace MicrophoneManager.ViewModels;
 
 public partial class MicrophoneListViewModel : ObservableObject
 {
-    private readonly AudioDeviceService _audioService;
+    private readonly IAudioDeviceService _audioService;
     private bool _suppressVolumeWrite;
     private bool _suppressInputMeterReset;
 
@@ -19,20 +20,19 @@ public partial class MicrophoneListViewModel : ObservableObject
     private DateTime _peakHoldUntilUtc;
     private DateTime _lastPeakTickUtc;
 
-    private const int PeakHoldMilliseconds = 750;
-    private const double PeakDecayPercentPerSecond = 35.0;
+    private double _peakMicDbFs = -96.0;
+
+    private const int PeakHoldMilliseconds = 5000;
+    private const double PeakDecayDbPerSecond = 20.0;
 
     [ObservableProperty]
-    private ObservableCollection<MicrophoneDevice> _microphones = new();
+    private ObservableCollection<MicrophoneEntryViewModel> _microphones = new();
 
     [ObservableProperty]
-    private MicrophoneDevice? _selectedMicrophone;
+    private MicrophoneEntryViewModel? _selectedMicrophone;
 
     [ObservableProperty]
     private bool _isMuted;
-
-    [ObservableProperty]
-    private ObservableCollection<AudioSession> _activeSessions = new();
 
     [ObservableProperty]
     private double _currentMicLevelPercent;
@@ -49,10 +49,20 @@ public partial class MicrophoneListViewModel : ObservableObject
     [ObservableProperty]
     private double _peakMicInputLevelDbFs;
 
-    public bool HasActiveSessions => ActiveSessions.Count > 0;
-    public bool HasNoActiveSessions => ActiveSessions.Count == 0;
+    private static void InvokeOnUiThread(Action action)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null)
+        {
+            dispatcher.BeginInvoke(action);
+            return;
+        }
 
-    public MicrophoneListViewModel(AudioDeviceService audioService)
+        // Unit tests (and some startup paths) may not have a WPF Application/Dispatcher.
+        action();
+    }
+
+    public MicrophoneListViewModel(IAudioDeviceService audioService)
     {
         _audioService = audioService;
 
@@ -60,19 +70,17 @@ public partial class MicrophoneListViewModel : ObservableObject
         _lastPeakTickUtc = DateTime.UtcNow;
         _peakHoldTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromMilliseconds(50)
+            Interval = TimeSpan.FromMilliseconds(16)
         };
         _peakHoldTimer.Tick += (_, _) => TickPeakHold();
         _peakHoldTimer.Start();
 
         // Subscribe to changes
-        _audioService.DevicesChanged += (s, e) =>
-            Application.Current?.Dispatcher?.BeginInvoke(RefreshDevices);
-        _audioService.DefaultDeviceChanged += (s, e) =>
-            Application.Current?.Dispatcher?.BeginInvoke(RefreshDevices);
+        _audioService.DevicesChanged += (s, e) => InvokeOnUiThread(RefreshDevices);
+        _audioService.DefaultDeviceChanged += (s, e) => InvokeOnUiThread(RefreshDevices);
 
         _audioService.DefaultMicrophoneVolumeChanged += (s, e) =>
-            Application.Current?.Dispatcher?.BeginInvoke(() =>
+            InvokeOnUiThread(() =>
             {
                 // Only reflect live updates for the current default microphone.
                 var defaultId = _audioService.GetDefaultDeviceId(NAudio.CoreAudioApi.Role.Console);
@@ -81,13 +89,17 @@ public partial class MicrophoneListViewModel : ObservableObject
                 _suppressVolumeWrite = true;
                 try
                 {
-                    CurrentMicLevelPercent = e.VolumeLevelScalar * 100.0;
+                    var volumePercent = Math.Round(e.VolumeLevelScalar * 100.0, 2);
+                    CurrentMicLevelPercent = volumePercent;
                     IsMuted = e.IsMuted;
 
                     if (App.TrayViewModel != null)
                     {
                         App.TrayViewModel.IsMuted = IsMuted;
                     }
+
+                    var defaultVm = Microphones.FirstOrDefault(m => m.Id == defaultId);
+                    defaultVm?.ApplyVolumeFromSystem(volumePercent);
                 }
                 finally
                 {
@@ -96,7 +108,7 @@ public partial class MicrophoneListViewModel : ObservableObject
             });
 
         _audioService.DefaultMicrophoneInputLevelChanged += (s, e) =>
-            Application.Current?.Dispatcher?.BeginInvoke(() =>
+            InvokeOnUiThread(() =>
             {
                 var defaultId = _audioService.GetDefaultDeviceId(NAudio.CoreAudioApi.Role.Console);
                 if (defaultId == null || e.DeviceId != defaultId) return;
@@ -117,16 +129,41 @@ public partial class MicrophoneListViewModel : ObservableObject
 
         // Initial load
         RefreshDevices();
+
+        // Poll meters so each device shows live input activity and peaks.
+        var meterTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        meterTimer.Tick += (_, _) => RefreshMeters();
+        meterTimer.Start();
     }
 
     public void RefreshDevices()
     {
         var devices = _audioService.GetMicrophones();
 
-        Microphones.Clear();
+        var existingById = Microphones.ToDictionary(m => m.Id, m => m);
+        var seenIds = new HashSet<string>();
+
         foreach (var device in devices)
         {
-            Microphones.Add(device);
+            if (existingById.TryGetValue(device.Id, out var vm))
+            {
+                vm.UpdateFrom(device);
+            }
+            else
+            {
+                Microphones.Add(new MicrophoneEntryViewModel(device, _audioService));
+            }
+
+            seenIds.Add(device.Id);
+        }
+
+        var toRemove = Microphones.Where(m => !seenIds.Contains(m.Id)).ToList();
+        foreach (var remove in toRemove)
+        {
+            Microphones.Remove(remove);
         }
 
         SelectedMicrophone = Microphones.FirstOrDefault(m => m.IsDefault);
@@ -136,7 +173,7 @@ public partial class MicrophoneListViewModel : ObservableObject
         try
         {
             // Reflect the current default microphone level into the UI (0-100)
-            CurrentMicLevelPercent = (SelectedMicrophone?.VolumeLevel ?? 1.0f) * 100.0;
+            CurrentMicLevelPercent = SelectedMicrophone?.VolumePercent ?? 100.0;
         }
         finally
         {
@@ -153,8 +190,8 @@ public partial class MicrophoneListViewModel : ObservableObject
             _peakHoldUntilUtc = DateTime.MinValue;
         }
 
-        // Refresh active sessions (apps using microphone)
-        RefreshActiveSessions();
+        OnPropertyChanged(nameof(HasMicrophones));
+        OnPropertyChanged(nameof(HasNoMicrophones));
     }
 
     partial void OnCurrentMicLevelPercentChanged(double value)
@@ -163,46 +200,6 @@ public partial class MicrophoneListViewModel : ObservableObject
 
         // Slider drives the current default microphone volume.
         _audioService.SetDefaultMicrophoneVolumePercent(value);
-    }
-
-    public void RefreshActiveSessions()
-    {
-        var sessions = _audioService.GetActiveMicrophoneSessions();
-
-        ActiveSessions.Clear();
-        foreach (var session in sessions)
-        {
-            ActiveSessions.Add(session);
-        }
-
-        // Notify that the computed properties have changed
-        OnPropertyChanged(nameof(HasActiveSessions));
-        OnPropertyChanged(nameof(HasNoActiveSessions));
-    }
-
-    [RelayCommand]
-    private void SelectMicrophone(MicrophoneDevice? device)
-    {
-        if (device == null || device.IsDefault) return;
-
-        _audioService.SetDefaultMicrophone(device.Id);
-
-        // Update selection state
-        foreach (var mic in Microphones)
-        {
-            mic.IsDefault = mic.Id == device.Id;
-            mic.IsDefaultCommunication = mic.Id == device.Id;
-        }
-
-        SelectedMicrophone = device;
-
-        // Force UI refresh
-        var temp = Microphones.ToList();
-        Microphones.Clear();
-        foreach (var mic in temp)
-        {
-            Microphones.Add(mic);
-        }
     }
 
     [RelayCommand]
@@ -225,6 +222,8 @@ public partial class MicrophoneListViewModel : ObservableObject
             PeakMicInputLevelPercent = clampedPercent;
             PeakMicInputLevelDbFs = currentDbFs;
             _peakHoldUntilUtc = DateTime.UtcNow.AddMilliseconds(PeakHoldMilliseconds);
+
+            _peakMicDbFs = MicrophoneManager.Services.ObsMeterMath.ClampMeterDb(currentDbFs);
         }
     }
 
@@ -237,16 +236,33 @@ public partial class MicrophoneListViewModel : ObservableObject
         if (dt.TotalSeconds <= 0) return;
         if (nowUtc <= _peakHoldUntilUtc) return;
 
-        var decay = PeakDecayPercentPerSecond * dt.TotalSeconds;
-        var newPeak = PeakMicInputLevelPercent - decay;
-        newPeak = Math.Max(CurrentMicInputLevelPercent, newPeak);
-        newPeak = Math.Max(0.0, Math.Min(100.0, newPeak));
+        _peakMicDbFs -= PeakDecayDbPerSecond * dt.TotalSeconds;
+        _peakMicDbFs = Math.Max(CurrentMicInputLevelDbFs, _peakMicDbFs);
+        _peakMicDbFs = MicrophoneManager.Services.ObsMeterMath.ClampMeterDb(_peakMicDbFs);
 
-        if (Math.Abs(newPeak - PeakMicInputLevelPercent) < 0.001) return;
+        var newPeakPercent = MicrophoneManager.Services.ObsMeterMath.DbToPercent(_peakMicDbFs);
+        if (Math.Abs(newPeakPercent - PeakMicInputLevelPercent) < 0.001) return;
 
-        PeakMicInputLevelPercent = newPeak;
+        PeakMicInputLevelPercent = newPeakPercent;
+        PeakMicInputLevelDbFs = _peakMicDbFs;
+    }
 
-        // Keep dBFS label consistent with our meter mapping (-60..0 dBFS -> 0..100%).
-        PeakMicInputLevelDbFs = -60.0 + (PeakMicInputLevelPercent / 100.0) * 60.0;
+    public bool HasMicrophones => Microphones.Count > 0;
+    public bool HasNoMicrophones => Microphones.Count == 0;
+
+    private void RefreshMeters()
+    {
+        // Only refresh the meter values to avoid excessive UI/layout churn.
+        // Device name/default/mute/volume changes are handled by other subscriptions.
+        var devices = _audioService.GetMicrophones();
+        var inputById = devices.ToDictionary(d => d.Id, d => d.InputLevelPercent);
+
+        foreach (var vm in Microphones)
+        {
+            if (inputById.TryGetValue(vm.Id, out var inputPercent))
+            {
+                vm.UpdateMeter(inputPercent);
+            }
+        }
     }
 }

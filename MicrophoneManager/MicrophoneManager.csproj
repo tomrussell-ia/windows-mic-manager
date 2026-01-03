@@ -9,6 +9,9 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
+    <!-- Configure high DPI mode via project settings (WinForms analyzer guidance) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
     <!-- Enable Windows Forms for Screen class (multi-monitor support) -->
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>

@@ -11,7 +11,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
 
     public static TrayViewModel? TrayViewModel { get; set; }
-    public static AudioDeviceService? AudioService { get; set; }
+    public static IAudioDeviceService? AudioService { get; set; }
     public static FlyoutWindow? DockedWindow { get; set; }
 
     private void Application_Startup(object sender, StartupEventArgs e)
