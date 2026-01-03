@@ -1,4 +1,0 @@
-// Windows resource file for application manifest
-#include "winuser.h"
-
-1 RT_MANIFEST "app.manifest"

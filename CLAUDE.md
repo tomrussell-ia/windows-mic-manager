@@ -1,4 +1,4 @@
-﻿# Claude AI Instructions
+# Claude AI Instructions
 
 For comprehensive project documentation, architecture patterns, and coding guidelines, see [AGENT.md](AGENT.md) in the repository root.
 
@@ -7,19 +7,13 @@ For comprehensive project documentation, architecture patterns, and coding guide
 **Last updated**: 2026-01-01
 
 ### Active Technologies
-- C# (.NET 8, WPF) - Current implementation in `MicrophoneManager/`
-- Rust 1.75+ (stable) - Parallel rebuild tracked in `specs/001-rust-mic-manager/`
+- C# (.NET 8, WPF) - Implementation in `MicrophoneManager/`
 
 ### Common Commands
 ```powershell
 # C# Development
 dotnet build MicrophoneManager/MicrophoneManager.csproj
 dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
-
-# Rust Development (standalone app)
-cd mic-manager-rs
-cargo test
-cargo clippy
 ```
 
 ---
