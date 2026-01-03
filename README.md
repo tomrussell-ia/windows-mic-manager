@@ -20,28 +20,15 @@ A Windows 11 system tray application for quick microphone selection, similar to 
 ### Prerequisites
 
 - .NET 8.0 SDK
-- Rust 1.75+ (stable) - for building the Rust FFI library
 
-### Quick Build (C# Only)
-
-If you just want to build the C# app with the existing NAudio backend:
+### Build from command line
 
 ```bash
 cd MicrophoneManager
 dotnet build
 ```
 
-### Full Build with Rust Integration
-
-The application supports an optional Rust backend for core audio operations. To build everything:
-
-```powershell
-# Build both Rust FFI library and C# app
-.\scripts\build-all.ps1
-
-# Or build just the Rust library
-.\scripts\build-rust-ffi.ps1
-```
+Note: `dotnet build` produces a normal development layout (lots of files). For distribution as a single `.exe`, use `dotnet publish`.
 
 ### Build portable EXE (Release)
 
@@ -54,10 +41,6 @@ For this repo, Release publishing is configured to produce a **single, self-cont
 Recommended (uses the checked-in publish profile):
 
 ```bash
-# First build Rust FFI (if using Rust backend)
-.\scripts\build-rust-ffi.ps1 -Configuration Release
-
-# Then publish the C# app
 dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
 ```
 
@@ -78,23 +61,8 @@ The output will be in `publish\win-x64-singlefile\`.
 
 - **Framework**: WPF (.NET 8)
 - **System Tray**: H.NotifyIcon.Wpf
-- **Audio Management**: NAudio + IPolicyConfig COM interface (or Rust FFI)
+- **Audio Management**: NAudio + IPolicyConfig COM interface
 - **MVVM**: CommunityToolkit.Mvvm
-
-### Rust Integration (Optional)
-
-The application supports two audio backends:
-
-1. **NAudio Backend** (default) - Pure C# implementation using NAudio library
-2. **Rust Backend** - Uses a Rust FFI library for core audio operations
-
-The Rust backend provides:
-- Memory-safe audio device enumeration
-- Thread-safe volume and mute control
-- Panic-safe FFI with error propagation
-- JSON-based data exchange for structured types
-
-See `docs/RUST_WPF_INTEGRATION.md` for detailed architecture documentation.
 
 ### Setting Default Microphone
 
@@ -111,39 +79,22 @@ This application sets both roles when you select a microphone.
 ## Project Structure
 
 ```
-windows-mic-manager/
-├── MicrophoneManager/              # C# WPF Application
-│   ├── App.xaml                    # Application entry
-│   ├── MainWindow.xaml             # Hidden window hosting tray icon
-│   ├── Views/
-│   │   └── MicrophoneFlyout.xaml   # Flyout UI with device list
-│   ├── ViewModels/
-│   │   ├── TrayViewModel.cs        # Tray icon state
-│   │   └── MicrophoneListViewModel.cs
-│   ├── Services/
-│   │   ├── AudioDeviceService.cs   # NAudio device enumeration
-│   │   ├── RustAudioDeviceService.cs # Rust FFI backend
-│   │   ├── PolicyConfigService.cs  # IPolicyConfig wrapper
-│   │   └── IconGenerator.cs        # Programmatic icon generation
-│   ├── Interop/                    # Rust FFI interop layer
-│   │   ├── MicEngine.cs            # High-level safe wrapper
-│   │   ├── MicEngineNative.cs      # P/Invoke declarations
-│   │   └── MicEngineTypes.cs       # JSON DTOs
-│   ├── Models/
-│   │   └── MicrophoneDevice.cs     # Device data model
-│   └── Converters/
-│       └── BoolToVisibilityConverter.cs
-├── mic-engine-ffi/                 # Rust FFI Library (cdylib)
-│   ├── Cargo.toml
-│   └── src/lib.rs                  # C ABI exports
-├── mic-manager-rs/                 # Standalone Rust app (egui)
-│   └── src/
-│       └── audio/                  # Audio logic (reused by FFI)
-├── docs/
-│   └── RUST_WPF_INTEGRATION.md     # Integration architecture
-└── scripts/
-    ├── build-rust-ffi.ps1          # Build Rust library
-    └── build-all.ps1               # Build everything
+MicrophoneManager/
+├── App.xaml                    # Application entry
+├── MainWindow.xaml             # Hidden window hosting tray icon
+├── Views/
+│   └── MicrophoneFlyout.xaml   # Flyout UI with device list
+├── ViewModels/
+│   ├── TrayViewModel.cs        # Tray icon state
+│   └── MicrophoneListViewModel.cs
+├── Services/
+│   ├── AudioDeviceService.cs   # NAudio device enumeration
+│   ├── PolicyConfigService.cs  # IPolicyConfig wrapper (set defaults)
+│   └── IconGenerator.cs        # Programmatic icon generation
+├── Models/
+│   └── MicrophoneDevice.cs     # Device data model
+└── Converters/
+    └── BoolToVisibilityConverter.cs
 ```
 
 ## License

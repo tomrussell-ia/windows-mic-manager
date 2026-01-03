@@ -430,9 +430,3 @@ perf.data.old
 
 # Claude AI assistant
 .claude
-
-##
-## Native DLLs (built from Rust)
-##
-MicrophoneManager/runtimes/win-x64/native/*.dll
-!MicrophoneManager/runtimes/win-x64/native/.gitkeep

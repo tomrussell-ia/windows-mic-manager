@@ -1,3 +1,0 @@
-# This directory holds the Rust FFI native library (mic_engine_ffi.dll)
-# The DLL is built by running: scripts/build-rust-ffi.ps1
-# Do not commit the actual DLL file.

@@ -16,16 +16,10 @@ For comprehensive project documentation, architecture patterns, and coding guide
 dotnet build MicrophoneManager/MicrophoneManager.csproj
 dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
 
-# Rust Development
-cargo test; cargo clippy
-
-# Rust FFI Library (for C# integration)
-cd mic-engine-ffi
-cargo build --release
-
-# Full Build (Rust FFI + C# App)
-.\scripts\build-all.ps1
-.\scripts\build-rust-ffi.ps1  # Just the Rust library
+# Rust Development (standalone app)
+cd mic-manager-rs
+cargo test
+cargo clippy
 ```
 
 ---

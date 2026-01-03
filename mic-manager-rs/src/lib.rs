@@ -18,9 +18,5 @@ pub mod ui;
 
 pub use app::AppState;
 pub use audio::{AudioError, DeviceEnumerator, DeviceEvent, MicrophoneDevice};
-pub use audio::device::{AudioFormat, DeviceRole, DeviceState};
-pub use audio::enumerator::ComGuard;
-pub use audio::policy::PolicyConfig;
-pub use audio::volume::VolumeController;
 pub use platform::{RegistryPreferences, UserPreferences, WindowMode};
 pub use ui::{FlyoutWindow, TrayEvent, TrayManager, TrayState};

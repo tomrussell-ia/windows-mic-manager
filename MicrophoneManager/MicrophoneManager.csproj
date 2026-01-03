@@ -40,13 +40,4 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 
-  <!-- Rust FFI native library -->
-  <ItemGroup>
-    <None Include="runtimes\win-x64\native\mic_engine_ffi.dll"
-          Condition="Exists('runtimes\win-x64\native\mic_engine_ffi.dll')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>mic_engine_ffi.dll</Link>
-    </None>
-  </ItemGroup>
-
 </Project>
