@@ -2,15 +2,9 @@
 
 ## Project Overview
 
-This is a Windows system tray application for quick microphone selection and control, targeting Windows 10/11. **Both C# (WPF) and Rust implementations are active development paths** for learning and comparison purposes.
+This is a Windows system tray application for quick microphone selection and control, targeting Windows 10/11. Built with **C# WPF on .NET 8**.
 
 **Core Purpose**: Provide comprehensive visibility and control over ALL audio input devices—not just the default. Users need to see and control non-default microphones that applications may be actively using (e.g., game using headset mic while default is a desk mic).
-
-### Dual Implementation Strategy
-
-- **C# Version** (`MicrophoneManager/`): WPF (.NET 8) proof-of-concept, currently functional
-- **Rust Version** (`mic-manager-rs/`): Parallel rebuild tracked in [specs/001-rust-mic-manager](specs/001-rust-mic-manager/)
-- **Goal**: Explore both ecosystems, compare Windows API bindings (NAudio vs. windows-rs), UI frameworks (WPF vs. native), and performance characteristics
 
 ## Critical Architecture Patterns
 
