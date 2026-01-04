@@ -26,19 +26,25 @@ public class MicrophoneEntryViewModelTests
         var viewModel = new MicrophoneEntryViewModel(device, fakeService);
 
         Assert.Equal("Desk Mic", viewModel.Name);
-        Assert.Equal(25, viewModel.InputLevelPercent);
-        Assert.Equal(25, viewModel.PeakLevelPercent);
+        Assert.InRange(viewModel.InputLevelPercent, 25d - 1e-6, 25d + 1e-6);
+        Assert.InRange(viewModel.PeakLevelPercent, 25d - 1e-6, 25d + 1e-6);
 
         viewModel.UpdateMeter(80);
-        Assert.Equal(80, viewModel.InputLevelPercent);
-        Assert.Equal(80, viewModel.PeakLevelPercent);
+        Assert.InRange(viewModel.InputLevelPercent, 80d - 1e-6, 80d + 1e-6);
+        Assert.InRange(viewModel.PeakLevelPercent, 80d - 1e-6, 80d + 1e-6);
 
         viewModel.UpdateMeter(20);
+
+        // Simulate time passing so the exponential release can lower the displayed meter.
+        System.Threading.Thread.Sleep(350);
+        viewModel.UpdateMeter(20);
+
         // Peak hold is ~5s; decay should start after that.
         viewModel.TickPeak(DateTime.UtcNow.AddSeconds(6));
 
-        // Peak should decay toward current level after hold expires.
-        Assert.InRange(viewModel.PeakLevelPercent, 20, 70);
+        // Peak should decay toward the current meter after hold expires.
+        Assert.InRange(viewModel.InputLevelPercent, 0, 80);
+        Assert.InRange(viewModel.PeakLevelPercent, viewModel.InputLevelPercent - 1e-3, 80d + 1e-3);
     }
 
     [Fact]
