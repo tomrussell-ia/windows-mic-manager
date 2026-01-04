@@ -1,0 +1,32 @@
+<Window
+    x:Class="MicrophoneManager.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tb="using:H.NotifyIcon"
+    xmlns:local="using:MicrophoneManager.WinUI"
+    xmlns:views="using:MicrophoneManager.WinUI.Views"
+    Title="Microphone Manager">
+
+    <Grid>
+        <!-- System Tray Icon -->
+        <tb:TaskbarIcon x:Name="TrayIcon"
+                        ToolTipText="Microphone Manager"
+                        LeftClickCommand="{x:Bind ShowFlyoutCommand}"
+                        NoLeftClickDelay="True">
+
+            <!-- Right-click context menu -->
+            <tb:TaskbarIcon.ContextMenuMode>
+                <tb:ContextMenuMode>SecondWindow</tb:ContextMenuMode>
+            </tb:TaskbarIcon.ContextMenuMode>
+
+            <tb:TaskbarIcon.ContextFlyout>
+                <MenuFlyout>
+                    <!-- TODO Stage B: Bind to TrayViewModel.StartupMenuText -->
+                    <MenuFlyoutItem Text="Start with Windows" Click="ToggleStartup_Click"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="Exit" Click="Exit_Click"/>
+                </MenuFlyout>
+            </tb:TaskbarIcon.ContextFlyout>
+        </tb:TaskbarIcon>
+    </Grid>
+</Window>

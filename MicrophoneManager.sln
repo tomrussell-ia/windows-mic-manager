@@ -6,6 +6,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager", "Microp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.Tests", "MicrophoneManager.Tests\\MicrophoneManager.Tests.csproj", "{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.Core", "MicrophoneManager.Core\\MicrophoneManager.Core.csproj", "{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.WinUI", "MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj", "{D2E3F4A5-B6C7-8901-DEFG-234567890BCD}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|x64 = Debug|x64
@@ -20,5 +24,13 @@ Global
         {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|x64.Build.0 = Debug|x64
         {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|x64.ActiveCfg = Release|x64
         {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|x64.Build.0 = Release|x64
+        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|x64.ActiveCfg = Debug|x64
+        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|x64.Build.0 = Debug|x64
+        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|x64.ActiveCfg = Release|x64
+        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|x64.Build.0 = Release|x64
+        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Debug|x64.ActiveCfg = Debug|x64
+        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Debug|x64.Build.0 = Debug|x64
+        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Release|x64.ActiveCfg = Release|x64
+        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Release|x64.Build.0 = Release|x64
     EndGlobalSection
 EndGlobal
