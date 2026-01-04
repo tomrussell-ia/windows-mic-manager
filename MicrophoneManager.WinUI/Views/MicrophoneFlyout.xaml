@@ -138,12 +138,12 @@
                                         </TextBlock>
                                     </Grid>
 
-                                    <!-- Meter Bar with Gradient and Peak Indicator -->
+                                    <!-- Meter Bar with Progressive Gradient and Peak Indicator -->
                                     <Border x:Name="MeterTrack"
                                            Grid.Row="1"
                                            Height="8"
                                            CornerRadius="4"
-                                           Background="{StaticResource MeterGradientBrush}"
+                                           Background="{x:Bind GetMeterBrush(InputLevelPercent), Mode=OneWay}"
                                            Margin="0,3,0,0"
                                            ClipsToBounds="True">
                                         <Grid>

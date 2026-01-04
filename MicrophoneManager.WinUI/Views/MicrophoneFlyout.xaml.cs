@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using MicrophoneManager.Core.ViewModels;
 using Windows.UI;
 
@@ -109,5 +110,52 @@ public static class MicrophoneViewModelExtensions
         if (trackWidth <= 0) return 0;
         var percent = Math.Max(0, Math.Min(100.0, inputPercent));
         return percent / 100.0 * trackWidth;
+    }
+
+    // Progressive meter gradient based on dB thresholds (NOT percentage)
+    public static Brush GetMeterBrush(this MicrophoneEntryViewModel vm, double inputPercent)
+    {
+        var percent = Math.Max(0, Math.Min(100.0, inputPercent));
+        var brush = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 0) };
+
+        // Standard broadcast metering dB thresholds:
+        // Green: -∞ to -20 dBFS (safe zone)
+        // Yellow: -20 to -9 dBFS (caution zone)
+        // Red: -9 to 0 dBFS (danger/clipping zone)
+        const double yellowThresholdDb = -20.0;
+        const double redThresholdDb = -9.0;
+
+        // Convert dB thresholds to bar positions (0-1 scale)
+        var yellowThresholdPercent = MicrophoneManager.Core.Services.ObsMeterMath.DbToPercent(yellowThresholdDb);
+        var redThresholdPercent = MicrophoneManager.Core.Services.ObsMeterMath.DbToPercent(redThresholdDb);
+        var yellowOffset = yellowThresholdPercent / 100.0;
+        var redOffset = redThresholdPercent / 100.0;
+
+        // Convert current input to dB to determine which zone we're in
+        var inputDbFs = MicrophoneManager.Core.Services.ObsMeterMath.PercentToDb(percent);
+
+        if (inputDbFs < yellowThresholdDb)
+        {
+            // Below -20 dBFS: Solid green only
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 60, 203, 92), Offset = 0.0 }); // #3CCB5C
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 60, 203, 92), Offset = 1.0 });
+        }
+        else if (inputDbFs < redThresholdDb)
+        {
+            // Between -20 and -9 dBFS: Green → Yellow gradient
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 60, 203, 92), Offset = 0.0 });  // Green
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 60, 203, 92), Offset = yellowOffset }); // Green until -20dB
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 230, 200, 74), Offset = redOffset }); // Yellow #E6C84A at -9dB
+        }
+        else
+        {
+            // Above -9 dBFS: Green → Yellow → Red gradient
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 60, 203, 92), Offset = 0.0 });  // Green #3CCB5C
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 60, 203, 92), Offset = yellowOffset }); // Green until -20dB
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 230, 200, 74), Offset = redOffset }); // Yellow #E6C84A at -9dB
+            brush.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 228, 91, 91), Offset = 1.0 }); // Red #E45B5B at 0dB
+        }
+
+        return brush;
     }
 }
