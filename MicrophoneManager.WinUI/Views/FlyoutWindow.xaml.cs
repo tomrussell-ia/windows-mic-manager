@@ -14,6 +14,8 @@ public sealed partial class FlyoutWindow : Window
     {
         InitializeComponent();
 
+        Flyout.RequestClose = Close;
+
         // Configure borderless, always-on-top window
         var appWindow = AppWindow;
         appWindow.TitleBar.ExtendsContentIntoTitleBar = true;

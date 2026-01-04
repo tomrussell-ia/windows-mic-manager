@@ -9,17 +9,18 @@
         <MicaBackdrop Kind="Base"/>
     </Window.SystemBackdrop>
 
-    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}"
-          CornerRadius="8"
-          Padding="16"
-          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-          BorderThickness="1">
+    <Border
+        Background="{ThemeResource LayerFillColorDefaultBrush}"
+        CornerRadius="8"
+        Padding="16"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1">
 
-        <Grid.Shadow>
+        <Border.Shadow>
             <ThemeShadow />
-        </Grid.Shadow>
+        </Border.Shadow>
 
         <!-- Stage B: Microphone Flyout -->
-        <local:MicrophoneFlyout/>
-    </Grid>
+        <local:MicrophoneFlyout x:Name="Flyout"/>
+    </Border>
 </Window>

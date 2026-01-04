@@ -95,19 +95,15 @@
                                                VerticalAlignment="Center">
                                         <Button Command="{x:Bind SetDefaultCommand}"
                                                Width="32" Height="24" Padding="0"
-                                               ToolTipService.ToolTip="Set Default">
-                                            <Button.Background>
-                                                <SolidColorBrush Color="{x:Bind GetDefaultButtonColor(IsDefault), Mode=OneWay}"/>
-                                            </Button.Background>
+                                               ToolTipService.ToolTip="Set Default"
+                                               Background="{StaticResource HoverBrush}">
                                             <FontIcon Glyph="&#xE720;" FontSize="13" Foreground="White"/>
                                         </Button>
 
                                         <Button Command="{x:Bind SetDefaultCommunicationCommand}"
                                                Width="32" Height="24" Padding="0"
-                                               ToolTipService.ToolTip="Set Communications">
-                                            <Button.Background>
-                                                <SolidColorBrush Color="{x:Bind GetCommButtonColor(IsDefaultCommunication), Mode=OneWay}"/>
-                                            </Button.Background>
+                                               ToolTipService.ToolTip="Set Communications"
+                                               Background="{StaticResource HoverBrush}">
                                             <FontIcon Glyph="&#xE8BD;" FontSize="13" Foreground="White"/>
                                         </Button>
                                     </StackPanel>
@@ -118,7 +114,6 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/> <!-- Label -->
                                         <RowDefinition Height="Auto"/> <!-- Meter -->
-                                        <RowDefinition Height="Auto"/> <!-- Scale -->
                                     </Grid.RowDefinitions>
 
                                     <!-- Label -->
@@ -138,72 +133,16 @@
                                         </TextBlock>
                                     </Grid>
 
-                                    <!-- Meter Bar with Progressive Gradient and Peak Indicator -->
-                                    <Border x:Name="MeterTrack"
-                                           Grid.Row="1"
-                                           Height="8"
-                                           CornerRadius="4"
-                                           Background="{x:Bind GetMeterBrush(InputLevelPercent), Mode=OneWay}"
-                                           Margin="0,3,0,0"
-                                           ClipsToBounds="True">
-                                        <Grid>
-                                            <!-- Mask overlay (dims the "remaining" portion) -->
-                                            <Border HorizontalAlignment="Left"
-                                                   Background="#2D2D2D"
-                                                   Opacity="0.70"
-                                                   Width="{x:Bind CalculateRemainingWidth(InputLevelPercent, MeterTrack.ActualWidth), Mode=OneWay}">
-                                                <Border.RenderTransform>
-                                                    <TranslateTransform X="{x:Bind CalculateTranslateX(InputLevelPercent, MeterTrack.ActualWidth), Mode=OneWay}"/>
-                                                </Border.RenderTransform>
-                                            </Border>
-
-                                            <!-- Peak indicator (white line) -->
-                                            <Border Width="2"
-                                                   Background="#FFFFFF"
-                                                   Opacity="0.9"
-                                                   HorizontalAlignment="Left">
-                                                <Border.RenderTransform>
-                                                    <TranslateTransform X="{x:Bind CalculatePeakX(PeakLevelPercent, MeterTrack.ActualWidth), Mode=OneWay}"/>
-                                                </Border.RenderTransform>
-                                            </Border>
-
-                                            <!-- Current level indicator (thin white line) -->
-                                            <Border Width="1"
-                                                   Background="#FFFFFF"
-                                                   Opacity="0.75"
-                                                   HorizontalAlignment="Left">
-                                                <Border.RenderTransform>
-                                                    <TranslateTransform X="{x:Bind CalculateInputX(InputLevelPercent, MeterTrack.ActualWidth), Mode=OneWay}"/>
-                                                </Border.RenderTransform>
-                                            </Border>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- Scale ticks and labels -->
-                                    <Grid Grid.Row="2" Margin="0,1,0,0">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="7"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <UniformGrid Grid.Row="0" Columns="6" HorizontalAlignment="Stretch">
-                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Left"/>
-                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
-                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
-                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
-                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Center"/>
-                                            <Border Width="1" Height="5" Background="#FFFFFF" Opacity="0.35" HorizontalAlignment="Right"/>
-                                        </UniformGrid>
-
-                                        <UniformGrid Grid.Row="1" Columns="6" HorizontalAlignment="Stretch">
-                                            <TextBlock Text="0" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Left"/>
-                                            <TextBlock Text="20" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
-                                            <TextBlock Text="40" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
-                                            <TextBlock Text="60" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
-                                            <TextBlock Text="80" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Center"/>
-                                            <TextBlock Text="100" Foreground="#AAAAAA" FontSize="9" HorizontalAlignment="Right"/>
-                                        </UniformGrid>
-                                    </Grid>
+                                    <!-- Meter Bar -->
+                                    <ProgressBar
+                                        Grid.Row="1"
+                                        Height="8"
+                                        Margin="0,3,0,0"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Value="{x:Bind InputLevelPercent, Mode=OneWay}"
+                                        Background="#2D2D2D"
+                                        Foreground="{StaticResource MeterGradientBrush}" />
                                 </Grid>
 
                                 <!-- Volume: Mute button + Slider -->
@@ -217,9 +156,9 @@
                                            Command="{x:Bind ToggleMuteCommand}"
                                            Width="32" Height="24" Padding="0"
                                            Margin="0,0,6,0"
-                                           ToolTipService.ToolTip="{x:Bind GetMuteTooltip(IsMuted), Mode=OneWay}"
+                                                         ToolTipService.ToolTip="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToLabel}}"
                                            Background="#3D3D3D">
-                                        <FontIcon Glyph="{x:Bind GetMuteIcon(IsMuted), Mode=OneWay}"
+                                                     <FontIcon Glyph="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToIcon}}"
                                                  FontSize="13"
                                                  Foreground="White"/>
                                     </Button>

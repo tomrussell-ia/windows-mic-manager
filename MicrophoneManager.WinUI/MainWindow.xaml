@@ -12,7 +12,7 @@
                         ToolTipText="Microphone Manager"
                         LeftClickCommand="{x:Bind ShowFlyoutCommand}">
             <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource Text="M" Foreground="White" Background="DodgerBlue" FontSize="48"/>
+                <tb:GeneratedIconSource Text="M" Foreground="#FFFFFFFF" Background="#FF0078D4" FontSize="48"/>
             </tb:TaskbarIcon.IconSource>
 
             <tb:TaskbarIcon.ContextFlyout>
