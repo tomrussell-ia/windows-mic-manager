@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Runtime.InteropServices;
 
 namespace MicrophoneManager.Services;
 
@@ -17,6 +18,12 @@ public static class IconGenerator
     private const string MicrophoneGlyph = "\uE720";      // Microphone
     private const string MicrophoneMutedGlyph = "\uE74F"; // Microphone with slash
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    /// <summary>
+    /// Creates a microphone icon. Caller is responsible for disposing the returned Icon.
+    /// </summary>
     public static Icon CreateMicrophoneIcon(bool isMuted)
     {
         using var bitmap = new Bitmap(IconSize, IconSize);
@@ -44,8 +51,18 @@ public static class IconGenerator
         var rect = new RectangleF(0, 0, IconSize, IconSize);
         graphics.DrawString(glyph, font, brush, rect, format);
 
-        // Convert bitmap to icon
+        // Convert bitmap to icon and destroy the unmanaged HICON handle
         IntPtr hIcon = bitmap.GetHicon();
-        return Icon.FromHandle(hIcon);
+        try
+        {
+            // Clone the icon so we can safely destroy the original handle
+            var icon = Icon.FromHandle(hIcon);
+            return (Icon)icon.Clone();
+        }
+        finally
+        {
+            // Always destroy the unmanaged HICON handle to prevent leaks
+            DestroyIcon(hIcon);
+        }
     }
 }

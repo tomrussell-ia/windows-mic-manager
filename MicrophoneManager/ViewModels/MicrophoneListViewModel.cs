@@ -10,17 +10,25 @@ using Application = System.Windows.Application;
 
 namespace MicrophoneManager.ViewModels;
 
-public partial class MicrophoneListViewModel : ObservableObject
+public partial class MicrophoneListViewModel : ObservableObject, IDisposable
 {
     private readonly IAudioDeviceService _audioService;
     private bool _suppressVolumeWrite;
     private bool _suppressInputMeterReset;
+    private bool _disposed;
 
     private readonly DispatcherTimer _peakHoldTimer;
+    private readonly DispatcherTimer _meterTimer;
     private DateTime _peakHoldUntilUtc;
     private DateTime _lastPeakTickUtc;
 
     private double _peakMicDbFs = -96.0;
+
+    // Store event handlers for unsubscription
+    private readonly EventHandler _devicesChangedHandler;
+    private readonly EventHandler _defaultDeviceChangedHandler;
+    private readonly EventHandler<VolumeChangedEventArgs> _volumeChangedHandler;
+    private readonly EventHandler<InputLevelChangedEventArgs> _inputLevelChangedHandler;
 
     private const int PeakHoldMilliseconds = 5000;
     private const double PeakDecayDbPerSecond = 20.0;
@@ -75,11 +83,11 @@ public partial class MicrophoneListViewModel : ObservableObject
         _peakHoldTimer.Tick += (_, _) => TickPeakHold();
         _peakHoldTimer.Start();
 
-        // Subscribe to changes
-        _audioService.DevicesChanged += (s, e) => InvokeOnUiThread(RefreshDevices);
-        _audioService.DefaultDeviceChanged += (s, e) => InvokeOnUiThread(RefreshDevices);
+        // Create event handlers and store references for cleanup
+        _devicesChangedHandler = (s, e) => InvokeOnUiThread(RefreshDevices);
+        _defaultDeviceChangedHandler = (s, e) => InvokeOnUiThread(RefreshDevices);
 
-        _audioService.DefaultMicrophoneVolumeChanged += (s, e) =>
+        _volumeChangedHandler = (s, e) =>
             InvokeOnUiThread(() =>
             {
                 // Only reflect live updates for the current default microphone.
@@ -107,7 +115,7 @@ public partial class MicrophoneListViewModel : ObservableObject
                 }
             });
 
-        _audioService.DefaultMicrophoneInputLevelChanged += (s, e) =>
+        _inputLevelChangedHandler = (s, e) =>
             InvokeOnUiThread(() =>
             {
                 var defaultId = _audioService.GetDefaultDeviceId(NAudio.CoreAudioApi.Role.Console);
@@ -127,16 +135,23 @@ public partial class MicrophoneListViewModel : ObservableObject
                 }
             });
 
+        // Subscribe to changes
+        _audioService.DevicesChanged += _devicesChangedHandler;
+        _audioService.DefaultDeviceChanged += _defaultDeviceChangedHandler;
+        _audioService.DefaultMicrophoneVolumeChanged += _volumeChangedHandler;
+        _audioService.DefaultMicrophoneInputLevelChanged += _inputLevelChangedHandler;
+
         // Initial load
         RefreshDevices();
 
-        // Poll meters so each device shows live input activity and peaks.
-        var meterTimer = new DispatcherTimer(DispatcherPriority.Background)
+        // Poll meters at 30Hz instead of 60Hz to reduce overhead (still smooth for UI)
+        // Note: This is only needed for non-default devices; default device uses event-driven updates
+        _meterTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromMilliseconds(16)
+            Interval = TimeSpan.FromMilliseconds(33)  // ~30Hz instead of 60Hz
         };
-        meterTimer.Tick += (_, _) => RefreshMeters();
-        meterTimer.Start();
+        _meterTimer.Tick += (_, _) => RefreshMeters();
+        _meterTimer.Start();
     }
 
     public void RefreshDevices()
@@ -164,6 +179,10 @@ public partial class MicrophoneListViewModel : ObservableObject
         foreach (var remove in toRemove)
         {
             Microphones.Remove(remove);
+            if (remove is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         SelectedMicrophone = Microphones.FirstOrDefault(m => m.IsDefault);
@@ -252,17 +271,70 @@ public partial class MicrophoneListViewModel : ObservableObject
 
     private void RefreshMeters()
     {
+        if (_disposed) return;
+
         // Only refresh the meter values to avoid excessive UI/layout churn.
         // Device name/default/mute/volume changes are handled by other subscriptions.
         var devices = _audioService.GetMicrophones();
-        var inputById = devices.ToDictionary(d => d.Id, d => d.InputLevelPercent);
 
+        // Optimized: Use direct iteration instead of dictionary allocation
+        // For typical 2-5 devices, O(n²) is faster than dictionary overhead
         foreach (var vm in Microphones)
         {
-            if (inputById.TryGetValue(vm.Id, out var inputPercent))
+            foreach (var device in devices)
             {
-                vm.UpdateMeter(inputPercent);
+                if (device.Id == vm.Id)
+                {
+                    vm.UpdateMeter(device.InputLevelPercent);
+                    break;
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// Pause timers to reduce CPU/memory usage when UI is hidden
+    /// </summary>
+    public void PauseTimers()
+    {
+        _peakHoldTimer?.Stop();
+        _meterTimer?.Stop();
+    }
+
+    /// <summary>
+    /// Resume timers when UI becomes visible again
+    /// </summary>
+    public void ResumeTimers()
+    {
+        if (_disposed) return;
+
+        _peakHoldTimer?.Start();
+        _meterTimer?.Start();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        // Stop timers first
+        _peakHoldTimer?.Stop();
+        _meterTimer?.Stop();
+
+        // Unsubscribe from events to prevent memory leaks
+        _audioService.DevicesChanged -= _devicesChangedHandler;
+        _audioService.DefaultDeviceChanged -= _defaultDeviceChangedHandler;
+        _audioService.DefaultMicrophoneVolumeChanged -= _volumeChangedHandler;
+        _audioService.DefaultMicrophoneInputLevelChanged -= _inputLevelChangedHandler;
+
+        // Dispose all microphone ViewModels
+        foreach (var vm in Microphones)
+        {
+            if (vm is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
+        Microphones.Clear();
     }
 }

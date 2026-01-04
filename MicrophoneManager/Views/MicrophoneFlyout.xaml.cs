@@ -48,13 +48,25 @@ public partial class MicrophoneFlyout : UserControl
         };
 
         // Refresh devices and update mute button when flyout becomes visible
+        // Pause/resume timers to reduce CPU/memory when hidden
         this.IsVisibleChanged += (s, e) =>
         {
             if (this.IsVisible)
             {
                 ViewModel.RefreshDevices();
+                ViewModel.ResumeTimers();
                 UpdateDockButton();
             }
+            else
+            {
+                ViewModel.PauseTimers();
+            }
+        };
+
+        // Dispose ViewModel when unloaded to prevent memory leaks
+        this.Unloaded += (s, e) =>
+        {
+            ViewModel?.Dispose();
         };
 
         // Initial dock button state

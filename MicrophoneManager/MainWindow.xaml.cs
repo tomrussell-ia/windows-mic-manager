@@ -9,6 +9,7 @@ namespace MicrophoneManager;
 public partial class MainWindow : Window
 {
     public TrayViewModel ViewModel { get; } = null!;
+    private System.Drawing.Icon? _currentTrayIcon;
 
     public MainWindow()
     {
@@ -51,8 +52,15 @@ public partial class MainWindow : Window
     {
         try
         {
-            var icon = IconGenerator.CreateMicrophoneIcon(isMuted);
-            TrayIcon.Icon = icon;
+            var newIcon = IconGenerator.CreateMicrophoneIcon(isMuted);
+
+            // Dispose old icon to prevent memory/GDI handle leaks
+            var oldIcon = _currentTrayIcon;
+            _currentTrayIcon = newIcon;
+            TrayIcon.Icon = newIcon;
+
+            // Dispose after setting new icon to avoid flicker
+            oldIcon?.Dispose();
         }
         catch (Exception ex)
         {
@@ -62,6 +70,10 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
+        // Dispose current icon
+        _currentTrayIcon?.Dispose();
+        _currentTrayIcon = null;
+
         TrayIcon?.Dispose();
         App.AudioService?.Dispose();
     }
