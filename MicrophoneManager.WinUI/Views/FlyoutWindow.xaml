@@ -19,12 +19,7 @@
             <ThemeShadow />
         </Grid.Shadow>
 
-        <!-- Stage A: Placeholder content -->
-        <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock Text="🎤" FontSize="48" HorizontalAlignment="Center"/>
-            <TextBlock Text="Microphone Manager" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-            <TextBlock Text="Stage A: Skeleton App" FontSize="14" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center"/>
-            <TextBlock Text="Press ESC to close" FontSize="12" Foreground="#999999" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-        </StackPanel>
+        <!-- Stage B: Microphone Flyout -->
+        <local:MicrophoneFlyout/>
     </Grid>
 </Window>

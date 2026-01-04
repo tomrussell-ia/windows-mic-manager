@@ -68,16 +68,23 @@ public partial class App : Application
     /// </summary>
     private void ConfigureServices(IServiceCollection services)
     {
-        // TODO Stage B: Register services
-        // services.AddSingleton<IAudioDeviceService, AudioDeviceService>();
-        // services.AddSingleton<IIconGeneratorService, IconGeneratorService>();
+        // Register services
+        services.AddSingleton<MicrophoneManager.Core.Services.IAudioDeviceService, MicrophoneManager.Core.Services.AudioDeviceService>();
 
-        // TODO Stage B: Register ViewModels
-        // services.AddSingleton<TrayViewModel>();
+        // Register ViewModels
+        services.AddSingleton<MicrophoneManager.Core.ViewModels.TrayViewModel>(sp =>
+        {
+            var audioService = sp.GetRequiredService<MicrophoneManager.Core.Services.IAudioDeviceService>();
+            // Icon update callback will be set in MainWindow
+            return new MicrophoneManager.Core.ViewModels.TrayViewModel(audioService, _ => { });
+        });
+
+        services.AddTransient<MicrophoneManager.Core.ViewModels.MicrophoneListViewModel>();
 
         // Register views
         services.AddSingleton<MainWindow>();
         services.AddTransient<Views.FlyoutWindow>();
+        services.AddTransient<Views.MicrophoneFlyout>();
     }
 
     /// <summary>
@@ -93,9 +100,9 @@ public partial class App : Application
             MainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
             LogError("DispatcherQueue obtained");
 
-            // TODO Stage B: Initialize services
-            // AudioService = Host.Services.GetRequiredService<IAudioDeviceService>();
-            // TrayViewModel = Host.Services.GetRequiredService<TrayViewModel>();
+            // Initialize services
+            AudioService = Host.Services.GetRequiredService<MicrophoneManager.Core.Services.IAudioDeviceService>();
+            TrayViewModel = Host.Services.GetRequiredService<MicrophoneManager.Core.ViewModels.TrayViewModel>();
 
             // Create and activate main window (will be hidden, hosts tray icon)
             LogError("Creating MainWindow");

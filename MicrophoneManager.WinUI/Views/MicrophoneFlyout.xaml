@@ -1,0 +1,137 @@
+<UserControl
+    x:Class="MicrophoneManager.WinUI.Views.MicrophoneFlyout"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MicrophoneManager.WinUI.Views"
+    xmlns:viewmodels="using:MicrophoneManager.Core.ViewModels"
+    MinWidth="370"
+    Background="#2D2D2D">
+
+    <StackPanel Spacing="12" Padding="12">
+        <!-- Header -->
+        <TextBlock Text="Default Microphone"
+                  FontSize="14"
+                  FontWeight="SemiBold"
+                  Foreground="#999999"/>
+
+        <!-- Single microphone card (default device) -->
+        <Grid x:Name="MicCard"
+              Background="#3D3D3D"
+              CornerRadius="6"
+              Padding="8"
+              x:Load="{x:Bind ViewModel.HasMicrophones, Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Header -->
+                <RowDefinition Height="Auto"/> <!-- Meter -->
+                <RowDefinition Height="Auto"/> <!-- Volume -->
+            </Grid.RowDefinitions>
+
+            <!-- Header: Name + Action Buttons -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <FontIcon Grid.Column="0"
+                         Glyph="&#xE720;"
+                         FontSize="18"
+                         Margin="0,0,8,0"
+                         Foreground="White"/>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{x:Bind ViewModel.SelectedMicrophone.Name, Mode=OneWay, FallbackValue='No Microphone'}"
+                              FontWeight="SemiBold"
+                              Foreground="White"/>
+                    <TextBlock Text="{x:Bind ViewModel.SelectedMicrophone.FormatTag, Mode=OneWay, FallbackValue=''}"
+                              FontSize="11"
+                              Foreground="#AAAAAA"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                           Orientation="Horizontal"
+                           Spacing="6">
+                    <Button Command="{x:Bind ViewModel.SelectedMicrophone.SetDefaultCommand, Mode=OneWay}"
+                           ToolTipService.ToolTip="Set Default"
+                           Width="32" Height="24" Padding="0"
+                           Background="{x:Bind GetDefaultButtonBackground(ViewModel.SelectedMicrophone.IsDefault), Mode=OneWay}">
+                        <FontIcon Glyph="&#xE720;" FontSize="13" Foreground="White"/>
+                    </Button>
+
+                    <Button Command="{x:Bind ViewModel.SelectedMicrophone.SetDefaultCommunicationCommand, Mode=OneWay}"
+                           ToolTipService.ToolTip="Set Communication"
+                           Width="32" Height="24" Padding="0"
+                           Background="{x:Bind GetCommButtonBackground(ViewModel.SelectedMicrophone.IsDefaultCommunication), Mode=OneWay}">
+                        <FontIcon Glyph="&#xE8BD;" FontSize="13" Foreground="White"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Meter: Input level -->
+            <Grid Grid.Row="1" Margin="0,8,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="Input"
+                              FontSize="11"
+                              Foreground="#AAAAAA"/>
+                    <TextBlock Grid.Column="1"
+                              Text="{x:Bind FormatPercent(ViewModel.SelectedMicrophone.InputLevelPercent), Mode=OneWay}"
+                              FontSize="11"
+                              Foreground="#AAAAAA"/>
+                </Grid>
+
+                <!-- Simplified meter bar (Stage B - basic implementation) -->
+                <Border Grid.Row="1"
+                       Height="8"
+                       CornerRadius="4"
+                       Background="#444444"
+                       Margin="0,4,0,0">
+                    <Border HorizontalAlignment="Left"
+                           CornerRadius="4"
+                           Width="{x:Bind CalculateMeterWidth(ViewModel.SelectedMicrophone.InputLevelPercent), Mode=OneWay}"
+                           Background="{StaticResource MeterGradientBrush}"/>
+                </Border>
+            </Grid>
+
+            <!-- Volume: Mute button + Slider -->
+            <Grid Grid.Row="2" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                       Command="{x:Bind ViewModel.SelectedMicrophone.ToggleMuteCommand, Mode=OneWay}"
+                       Width="32" Height="24" Padding="0"
+                       Margin="0,0,8,0"
+                       ToolTipService.ToolTip="{x:Bind GetMuteTooltip(ViewModel.SelectedMicrophone.IsMuted), Mode=OneWay}"
+                       Background="#3D3D3D">
+                    <FontIcon Glyph="{x:Bind GetMuteIcon(ViewModel.SelectedMicrophone.IsMuted), Mode=OneWay}"
+                             FontSize="13"
+                             Foreground="White"/>
+                </Button>
+
+                <Slider Grid.Column="1"
+                       Minimum="0"
+                       Maximum="100"
+                       Value="{x:Bind ViewModel.SelectedMicrophone.VolumePercent, Mode=TwoWay}"/>
+            </Grid>
+        </Grid>
+
+        <!-- No microphones message -->
+        <TextBlock Text="No microphones detected"
+                  Foreground="#AAAAAA"
+                  Margin="4,6,0,0"
+                  Visibility="{x:Bind ViewModel.HasNoMicrophones, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+    </StackPanel>
+</UserControl>

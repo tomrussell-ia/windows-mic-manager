@@ -8,13 +8,27 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Add custom resource dictionaries here when created -->
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Temporary inline resources for Stage A -->
+            <!-- Converters -->
+            <local:Converters.BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            <local:Converters.MuteStateToIconConverter x:Key="MuteStateToIcon"/>
+            <local:Converters.MuteStateToLabelConverter x:Key="MuteStateToLabel"/>
+            <local:Converters.PercentFormatConverter x:Key="PercentFormat"/>
+
+            <!-- Color Palette (Dark Theme) -->
             <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
             <SolidColorBrush x:Key="BackgroundBrush" Color="#2D2D2D"/>
             <SolidColorBrush x:Key="ForegroundBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="HoverBrush" Color="#3D3D3D"/>
+
+            <!-- Meter Gradient (green → yellow → red) -->
+            <LinearGradientBrush x:Key="MeterGradientBrush" StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#3CCB5C" Offset="0.00"/>
+                <GradientStop Color="#3CCB5C" Offset="0.70"/>
+                <GradientStop Color="#E6C84A" Offset="0.85"/>
+                <GradientStop Color="#E45B5B" Offset="1.00"/>
+            </LinearGradientBrush>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
