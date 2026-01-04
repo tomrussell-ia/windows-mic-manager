@@ -28,18 +28,56 @@ Stage C (Full Parity)
 
 ---
 
+## Critical Implementation Notes (Verified 2026-01-04)
+
+### Hidden Window Pattern - What Works and What Doesn't
+
+**❌ Does NOT Work:**
+- `AppWindow.Hide()` - Causes the WinUI 3 message loop to exit immediately
+- `AppWindow.MoveAndResize(0, 0, 0, 0)` - Also causes app exit
+- Setting window size to 0x0 in any form - Causes app exit
+
+**✅ WORKS:**
+- Off-screen positioning: `AppWindow.MoveAndResize(new RectInt32(-32000, -32000, 1, 1))`
+- This keeps the window "visible" to the system but off-screen
+- Combined with `AppWindow.IsShownInSwitchers = false` to hide from Alt+Tab
+
+**Why:** WinUI 3's message loop exits when all windows are hidden. The off-screen approach keeps a valid HWND with WS_VISIBLE style, maintaining the message loop.
+
+### Project Configuration That Works
+
+```xml
+<PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Platforms>x64</Platforms>
+    <DefineConstants>DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+</PropertyGroup>
+```
+
+### Custom Entry Point Requirement
+
+For unpackaged WinUI 3 apps, a custom `Program.cs` with `Main` method is required:
+- Call `WinRT.ComWrappersSupport.InitializeComWrappers()` before anything else
+- Use `Application.Start()` to create the XAML app instance
+- This provides better error diagnostics than auto-generated entry point
+
+---
+
 ## Stage A: Skeleton App with System Tray
 
 **Goal**: Create functional WinUI 3 application with system tray icon and basic shell
 
 **Success Criteria**:
-- ✅ WinUI 3 project builds and runs
-- ✅ System tray icon appears
-- ✅ Left-click shows empty flyout window
-- ✅ Right-click shows context menu (Exit command works)
-- ✅ Dependency injection container initialized
-- ✅ Application lifecycle (startup, shutdown) works
-- ✅ Single-file EXE publishes successfully
+- ✅ WinUI 3 project builds and runs (VERIFIED 2026-01-04)
+- ✅ System tray icon appears (VERIFIED - using H.NotifyIcon.WinUI 2.1.3 with GeneratedIconSource)
+- ✅ Left-click shows flyout window (VERIFIED)
+- ✅ Right-click shows context menu (Exit command works) (VERIFIED)
+- ✅ Dependency injection container initialized (VERIFIED - Microsoft.Extensions.Hosting)
+- ✅ Application lifecycle (startup, shutdown) works (VERIFIED - off-screen window pattern keeps message loop alive)
+- [ ] Single-file EXE publishes successfully (not yet tested)
 
 ### A.1 Project Setup
 
@@ -1074,10 +1112,12 @@ jobs:
 ## Appendix: View-by-View Migration Checklist
 
 ### MainWindow
-- [x] Hidden window setup (AppWindow resize to 0x0)
-- [x] System tray icon host
-- [x] Context menu (startup toggle, exit)
-- [x] Icon update on mute change
+- [x] Hidden window setup (off-screen positioning at -32000,-32000 with 1x1 size - NOT Hide() which causes app exit)
+- [x] System tray icon host (H.NotifyIcon.WinUI v2.1.3)
+- [x] Context menu (Show, Exit commands working)
+- [x] AppWindow.IsShownInSwitchers = false (hides from Alt+Tab)
+- [ ] Icon update on mute change (Stage B)
+- [ ] Startup toggle menu item (Stage B)
 - [ ] Test with Win11 taskbar overflow
 
 ### FlyoutWindow
