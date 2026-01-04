@@ -2,7 +2,8 @@
     x:Class="MicrophoneManager.WinUI.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:MicrophoneManager.WinUI">
+    xmlns:local="using:MicrophoneManager.WinUI"
+    xmlns:converters="using:MicrophoneManager.WinUI.Converters">
 
     <Application.Resources>
         <ResourceDictionary>
@@ -11,10 +12,10 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Converters -->
-            <local:Converters.BoolToVisibilityConverter x:Key="BoolToVisibility"/>
-            <local:Converters.MuteStateToIconConverter x:Key="MuteStateToIcon"/>
-            <local:Converters.MuteStateToLabelConverter x:Key="MuteStateToLabel"/>
-            <local:Converters.PercentFormatConverter x:Key="PercentFormat"/>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            <converters:MuteStateToIconConverter x:Key="MuteStateToIcon"/>
+            <converters:MuteStateToLabelConverter x:Key="MuteStateToLabel"/>
+            <converters:PercentFormatConverter x:Key="PercentFormat"/>
 
             <!-- Color Palette (Dark Theme) -->
             <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>

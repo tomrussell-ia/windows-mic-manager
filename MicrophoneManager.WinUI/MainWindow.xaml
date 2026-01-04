@@ -9,7 +9,8 @@
     <Grid>
         <!-- System Tray Icon -->
         <tb:TaskbarIcon x:Name="TrayIcon"
-                        ToolTipText="Microphone Manager">
+                        ToolTipText="Microphone Manager"
+                        LeftClickCommand="{x:Bind ShowFlyoutCommand}">
             <tb:TaskbarIcon.IconSource>
                 <tb:GeneratedIconSource Text="M" Foreground="White" Background="DodgerBlue" FontSize="48"/>
             </tb:TaskbarIcon.IconSource>

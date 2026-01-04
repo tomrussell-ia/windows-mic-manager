@@ -1,36 +1,57 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11312.210 d18.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager", "MicrophoneManager\\MicrophoneManager.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager", "MicrophoneManager\MicrophoneManager.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.Tests", "MicrophoneManager.Tests\\MicrophoneManager.Tests.csproj", "{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.Tests", "MicrophoneManager.Tests\MicrophoneManager.Tests.csproj", "{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.Core", "MicrophoneManager.Core\\MicrophoneManager.Core.csproj", "{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.Core", "MicrophoneManager.Core\MicrophoneManager.Core.csproj", "{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.WinUI", "MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj", "{D2E3F4A5-B6C7-8901-DEFG-234567890BCD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MicrophoneManager.WinUI", "MicrophoneManager.WinUI\MicrophoneManager.WinUI.csproj", "{8EC31C11-9874-4FD7-A628-5FB7464E30C5}"
 EndProject
 Global
-    GlobalSection(SolutionConfigurationPlatforms) = preSolution
-        Debug|x64 = Debug|x64
-        Release|x64 = Release|x64
-    EndGlobalSection
-    GlobalSection(ProjectConfigurationPlatforms) = postSolution
-        {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.ActiveCfg = Debug|x64
-        {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.Build.0 = Debug|x64
-        {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.ActiveCfg = Release|x64
-        {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.Build.0 = Release|x64
-        {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|x64.ActiveCfg = Debug|x64
-        {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|x64.Build.0 = Debug|x64
-        {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|x64.ActiveCfg = Release|x64
-        {B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|x64.Build.0 = Release|x64
-        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|x64.ActiveCfg = Debug|x64
-        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|x64.Build.0 = Debug|x64
-        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|x64.ActiveCfg = Release|x64
-        {C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|x64.Build.0 = Release|x64
-        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Debug|x64.ActiveCfg = Debug|x64
-        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Debug|x64.Build.0 = Debug|x64
-        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Release|x64.ActiveCfg = Release|x64
-        {D2E3F4A5-B6C7-8901-DEFG-234567890BCD}.Release|x64.Build.0 = Release|x64
-    EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.ActiveCfg = Debug|x64
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.Build.0 = Debug|x64
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.ActiveCfg = Release|x64
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.Build.0 = Release|x64
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Debug|x64.Build.0 = Debug|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|x64.ActiveCfg = Release|Any CPU
+		{B9E1F0D5-5A0A-46B5-9F96-AB6F8B1EE2AE}.Release|x64.Build.0 = Release|Any CPU
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|x64.ActiveCfg = Debug|x64
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Debug|x64.Build.0 = Debug|x64
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|x64.ActiveCfg = Release|x64
+		{C1D2E3F4-A5B6-7890-CDEF-123456789ABC}.Release|x64.Build.0 = Release|x64
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Debug|x64.ActiveCfg = Debug|x64
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Debug|x64.Build.0 = Debug|x64
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Release|x64.ActiveCfg = Release|x64
+		{8EC31C11-9874-4FD7-A628-5FB7464E30C5}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
 EndGlobal

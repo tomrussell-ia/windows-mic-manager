@@ -2,6 +2,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using System;
 using System.Diagnostics;
+using System.Windows.Input;
 
 namespace MicrophoneManager.WinUI;
 
@@ -12,9 +13,15 @@ public sealed partial class MainWindow : Window
 {
     private Views.FlyoutWindow? _flyoutWindow;
 
+    public ICommand ShowFlyoutCommand { get; }
+
     public MainWindow()
     {
         Debug.WriteLine("MainWindow constructor starting");
+
+        // Create command before InitializeComponent (needed for x:Bind)
+        ShowFlyoutCommand = new RelayCommand(() => ShowFlyout());
+
         InitializeComponent();
         Debug.WriteLine("MainWindow InitializeComponent completed");
 

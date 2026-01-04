@@ -37,13 +37,13 @@ public sealed partial class MicrophoneFlyout : UserControl
     {
         return isDefault
             ? new SolidColorBrush(Microsoft.UI.Colors.DodgerBlue)
-            : new SolidColorBrush(Microsoft.UI.Color.FromArgb(255, 61, 61, 61));
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 61, 61, 61));
     }
 
     public Brush GetCommButtonBackground(bool isDefaultComm)
     {
         return isDefaultComm
-            ? new SolidColorBrush(Microsoft.UI.Color.FromArgb(255, 106, 27, 154)) // Purple
-            : new SolidColorBrush(Microsoft.UI.Color.FromArgb(255, 61, 61, 61));
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 106, 27, 154)) // Purple
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 61, 61, 61));
     }
 }
