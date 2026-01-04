@@ -31,16 +31,12 @@ public sealed partial class MainWindow : Window
         // Only process on first activation
         Activated -= MainWindow_Activated;
 
-        // Minimize the window to taskbar area but keep it alive
-        // Using ShowMinimized keeps the message loop running
+        // Move window off-screen to keep message loop alive
+        // IMPORTANT: Hide() causes app exit in WinUI 3 - must use off-screen positioning instead
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            Debug.WriteLine("Minimizing MainWindow");
-            var presenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
-            if (presenter != null)
-            {
-                presenter.Minimize();
-            }
+            Debug.WriteLine("Moving MainWindow off-screen");
+            AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(-32000, -32000, 1, 1));
         });
     }
 
