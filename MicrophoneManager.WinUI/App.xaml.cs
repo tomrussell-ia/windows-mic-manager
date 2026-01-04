@@ -2,6 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using System;
+using System.Diagnostics;
+using System.IO;
 
 namespace MicrophoneManager.WinUI;
 
@@ -10,6 +13,15 @@ namespace MicrophoneManager.WinUI;
 /// </summary>
 public partial class App : Application
 {
+    private static void LogError(string message)
+    {
+        try
+        {
+            var logPath = Path.Combine(AppContext.BaseDirectory, "startup_error.log");
+            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+        }
+        catch { }
+    }
     /// <summary>
     /// Dependency injection host
     /// </summary>
@@ -31,13 +43,24 @@ public partial class App : Application
     /// </summary>
     public App()
     {
-        InitializeComponent();
+        try
+        {
+            LogError("App constructor starting");
+            InitializeComponent();
+            LogError("InitializeComponent completed");
 
-        // Build dependency injection container
-        Host = Microsoft.Extensions.Hosting.Host
-            .CreateDefaultBuilder()
-            .ConfigureServices(ConfigureServices)
-            .Build();
+            // Build dependency injection container
+            Host = Microsoft.Extensions.Hosting.Host
+                .CreateDefaultBuilder()
+                .ConfigureServices(ConfigureServices)
+                .Build();
+            LogError("DI container built");
+        }
+        catch (Exception ex)
+        {
+            LogError($"App constructor exception: {ex}");
+            throw;
+        }
     }
 
     /// <summary>
@@ -63,16 +86,29 @@ public partial class App : Application
     /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Get dispatcher for UI thread access
-        MainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        try
+        {
+            LogError("OnLaunched starting");
+            // Get dispatcher for UI thread access
+            MainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            LogError("DispatcherQueue obtained");
 
-        // TODO Stage B: Initialize services
-        // AudioService = Host.Services.GetRequiredService<IAudioDeviceService>();
-        // TrayViewModel = Host.Services.GetRequiredService<TrayViewModel>();
+            // TODO Stage B: Initialize services
+            // AudioService = Host.Services.GetRequiredService<IAudioDeviceService>();
+            // TrayViewModel = Host.Services.GetRequiredService<TrayViewModel>();
 
-        // Create and activate main window (will be hidden, hosts tray icon)
-        m_window = Host.Services.GetRequiredService<MainWindow>();
-        m_window.Activate();
+            // Create and activate main window (will be hidden, hosts tray icon)
+            LogError("Creating MainWindow");
+            m_window = Host.Services.GetRequiredService<MainWindow>();
+            LogError("MainWindow created, activating");
+            m_window.Activate();
+            LogError("MainWindow activated");
+        }
+        catch (Exception ex)
+        {
+            LogError($"OnLaunched exception: {ex}");
+            throw;
+        }
     }
 
     private Window? m_window;

@@ -1,6 +1,5 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Input;
 using System;
 using System.Diagnostics;
 
@@ -15,32 +14,40 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        Debug.WriteLine("MainWindow constructor starting");
         InitializeComponent();
+        Debug.WriteLine("MainWindow InitializeComponent completed");
 
-        // Hide the main window (it only hosts the tray icon)
-        var appWindow = AppWindow;
-        appWindow.Resize(new Windows.Graphics.SizeInt32(0, 0));
-        appWindow.IsShownInSwitchers = false;
+        // Don't show in taskbar/switchers
+        AppWindow.IsShownInSwitchers = false;
 
-        // Set a placeholder tray icon (Stage B will add proper icon generation)
-        try
-        {
-            // TODO Stage B: Use proper icon generator service
-            // For now, set a simple icon or handle missing icon gracefully
-            Debug.WriteLine("MainWindow initialized - tray icon placeholder");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Tray icon setup warning: {ex.Message}");
-        }
-
+        // Subscribe to Activated event to hide the window after it's shown
+        Activated += MainWindow_Activated;
         Closed += MainWindow_Closed;
     }
 
-    /// <summary>
-    /// Command to show flyout window (left-click tray icon)
-    /// </summary>
-    public ICommand ShowFlyoutCommand => new RelayCommand(ShowFlyout);
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        // Only process on first activation
+        Activated -= MainWindow_Activated;
+
+        // Minimize the window to taskbar area but keep it alive
+        // Using ShowMinimized keeps the message loop running
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            Debug.WriteLine("Minimizing MainWindow");
+            var presenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
+            if (presenter != null)
+            {
+                presenter.Minimize();
+            }
+        });
+    }
+
+    private void ShowFlyout_Click(object sender, RoutedEventArgs e)
+    {
+        ShowFlyout();
+    }
 
     private void ShowFlyout()
     {
@@ -51,14 +58,12 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            // Bring existing window to front
             _flyoutWindow.Activate();
         }
     }
 
     private bool IsWindowVisible(Window window)
     {
-        // Simple check - in production, would track window state more carefully
         try
         {
             return window.AppWindow.IsVisible;
@@ -69,15 +74,8 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ToggleStartup_Click(object sender, RoutedEventArgs e)
-    {
-        // TODO Stage B: Implement with StartupService
-        Debug.WriteLine("Toggle startup clicked (not yet implemented)");
-    }
-
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
-        // Close all windows and exit
         try
         {
             _flyoutWindow?.Close();
@@ -85,36 +83,11 @@ public sealed partial class MainWindow : Window
         catch { }
 
         TrayIcon?.Dispose();
-
-        // TODO Stage B: Cleanup audio service
-        // App.AudioService?.Dispose();
-
         Application.Current.Exit();
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         TrayIcon?.Dispose();
-        // TODO Stage B: Cleanup services
     }
-}
-
-/// <summary>
-/// Simple relay command implementation for Stage A
-/// TODO Stage B: Use CommunityToolkit.Mvvm.Input.RelayCommand from Core ViewModels
-/// </summary>
-internal class RelayCommand : ICommand
-{
-    private readonly Action _execute;
-
-    public RelayCommand(Action execute)
-    {
-        _execute = execute;
-    }
-
-    public event EventHandler? CanExecuteChanged;
-
-    public bool CanExecute(object? parameter) => true;
-
-    public void Execute(object? parameter) => _execute();
 }

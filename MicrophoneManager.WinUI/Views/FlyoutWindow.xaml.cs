@@ -29,14 +29,17 @@ public sealed partial class FlyoutWindow : Window
         appWindow.ResizeClient(new Windows.Graphics.SizeInt32(390, 300));
         CenterOnScreen();
 
-        // Close on Escape key
-        KeyDown += (s, e) =>
+        // Close on Escape key - hook up to root content
+        if (Content is UIElement root)
         {
-            if (e.Key == Windows.System.VirtualKey.Escape)
+            root.KeyDown += (s, e) =>
             {
-                Close();
-            }
-        };
+                if (e.Key == Windows.System.VirtualKey.Escape)
+                {
+                    Close();
+                }
+            };
+        }
     }
 
     private void CenterOnScreen()
