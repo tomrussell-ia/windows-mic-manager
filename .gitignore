@@ -31,12 +31,6 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Visual Studio 2015/2017 cache/options directory
-.vs/
-
-# Visual Studio Code
-.vscode/
-
 # Rider
 .idea/
 *.sln.iml

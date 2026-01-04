@@ -1,0 +1,286 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "dotnet clean+build (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet clean .\\MicrophoneManager.sln -v minimal -p:Platform=x64; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; dotnet build .\\MicrophoneManager.sln -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "dotnet build (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet build .\\MicrophoneManager.sln -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": "build"
+		},
+		{
+			"label": "dotnet build WinUI (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet build .\\MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": "build"
+		},
+		{
+			"label": "dotnet run WinUI (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet run --project .\\MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj -c Debug -p:Platform=x64 --no-build"
+			],
+			"dependsOn": [
+				"dotnet build WinUI (Debug x64)"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "dotnet run WPF (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet run --project .\\MicrophoneManager\\MicrophoneManager.csproj -c Debug -p:Platform=x64 --no-build"
+			],
+			"dependsOn": [
+				"dotnet build (Debug x64)"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "dotnet test (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet test .\\MicrophoneManager.Tests\\MicrophoneManager.Tests.csproj -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": "test"
+		},
+		{
+			"label": "publish single-file (win-x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet publish .\\MicrophoneManager\\MicrophoneManager.csproj -c Release -p:PublishProfile=win-x64-singlefile"
+			],
+			"problemMatcher": "$msCompile",
+			"group": "build"
+		},
+		{
+			"label": "publish single-file + copy to D:\\utils",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}\\scripts\\publish-singlefile-to-utils.ps1"
+			],
+			"problemMatcher": "$msCompile",
+			"group": "build"
+		},
+		{
+			"label": "git status (porcelain)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location 'd:\\repos\\local\\windows-microphone-manager'; git status --porcelain=v1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "delete stray nul file",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$p='\\\\?\\D:\\repos\\local\\windows-microphone-manager\\nul'; if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }; git status --porcelain=v1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "delete stray nul file (safe)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location 'd:\\repos\\local\\windows-microphone-manager'; $base=[System.IO.Path]::Combine('D:','repos','local','windows-microphone-manager','nul'); $p='\\\\?\\'+$base; if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }; git status --porcelain=v1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "delete untracked nul via cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"del",
+				"/f",
+				"/q",
+				"\\\\?\\D:\\repos\\local\\windows-microphone-manager\\nul"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git status (porcelain) after delete",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"cd /d D:\\repos\\local\\windows-microphone-manager; git status --porcelain=v1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git status (porcelain) after delete 2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location \"D:\\repos\\local\\windows-microphone-manager\"; git status --porcelain=v1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "diagnose publish+copy to D:\\utils",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$ErrorActionPreference='Stop'; Set-Location 'd:\\repos\\local\\windows-microphone-manager'; Write-Host 'Publishing...'; dotnet publish .\\MicrophoneManager\\MicrophoneManager.csproj -c Release -p:PublishProfile=win-x64-singlefile -v minimal; Write-Host ('publish exit=' + $LASTEXITCODE); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $src = Join-Path (Get-Location) 'publish\\win-x64-singlefile\\MicrophoneManager.exe'; Write-Host ('src=' + $src); Write-Host ('src exists=' + (Test-Path $src)); if (!(Test-Path $src)) { Get-ChildItem (Join-Path (Get-Location) 'publish\\win-x64-singlefile') -Force | Format-Table -AutoSize | Out-String | Write-Host; throw ('Publish output not found: ' + $src) }; $dstDir = 'D:\\utils'; Write-Host ('dstDir exists=' + (Test-Path $dstDir)); New-Item -ItemType Directory -Path $dstDir -Force | Out-Null; $dst = Join-Path $dstDir 'MicrophoneManager.exe'; Write-Host ('Copying to ' + $dst); Copy-Item -Force -Path $src -Destination $dst; Write-Host 'Copy done.'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "diagnose publish+copy to D:\\utils (fixed quoting)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$ErrorActionPreference = \"Stop\"; Set-Location \"d:\\repos\\local\\windows-microphone-manager\"; Write-Host \"Publishing...\"; dotnet publish .\\MicrophoneManager\\MicrophoneManager.csproj -c Release -p:PublishProfile=win-x64-singlefile -v minimal; Write-Host (\"publish exit=\" + $LASTEXITCODE); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $src = Join-Path (Get-Location) \"publish\\win-x64-singlefile\\MicrophoneManager.exe\"; Write-Host (\"src=\" + $src); Write-Host (\"src exists=\" + (Test-Path $src)); if (!(Test-Path $src)) { Write-Host \"Listing publish dir:\"; Get-ChildItem (Join-Path (Get-Location) \"publish\\win-x64-singlefile\") -Force | Format-Table -AutoSize | Out-String | Write-Host; throw (\"Publish output not found: \" + $src) }; $dstDir = \"D:\\utils\"; Write-Host (\"dstDir exists=\" + (Test-Path $dstDir)); New-Item -ItemType Directory -Path $dstDir -Force | Out-Null; $dst = Join-Path $dstDir \"MicrophoneManager.exe\"; Write-Host (\"Copying to \" + $dst); Copy-Item -Force -Path $src -Destination $dst; Write-Host \"Copy done.\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "diagnose publish+copy to D:\\utils (no-quote)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop; Set-Location d:\\repos\\local\\windows-microphone-manager; Write-Host Publishing; dotnet publish .\\MicrophoneManager\\MicrophoneManager.csproj -c Release -p:PublishProfile=win-x64-singlefile -v minimal; Write-Host publishExit=$LASTEXITCODE; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $src = Join-Path (Get-Location) publish\\win-x64-singlefile\\MicrophoneManager.exe; Write-Host src=$src; Write-Host srcExists=(Test-Path $src); if (!(Test-Path $src)) { Write-Host ListingPublishDir; Get-ChildItem (Join-Path (Get-Location) publish\\win-x64-singlefile) -Force | Format-Table -AutoSize | Out-String | Write-Host; throw (\"Publish output not found: \" + $src) }; $dstDir = D:\\utils; Write-Host dstDirExists=(Test-Path $dstDir); New-Item -ItemType Directory -Path $dstDir -Force | Out-Null; $dst = Join-Path $dstDir MicrophoneManager.exe; Write-Host CopyingTo=$dst; Copy-Item -Force -Path $src -Destination $dst; Write-Host CopyDone"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "publish single-file + copy to D:\\utils (verify output)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet publish .\\MicrophoneManager\\MicrophoneManager.csproj -c Release -p:PublishProfile=win-x64-singlefile -v minimal; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $src = Join-Path '${workspaceFolder}' 'publish\\win-x64-singlefile\\MicrophoneManager.exe'; Write-Host ('src=' + $src); if (!(Test-Path $src)) { throw ('Publish output not found: ' + $src) }; $dstDir = 'D:\\utils'; New-Item -ItemType Directory -Path $dstDir -Force | Out-Null; $dst = Join-Path $dstDir 'MicrophoneManager.exe'; Copy-Item -Force -Path $src -Destination $dst; Write-Host ('copied to ' + $dst)"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "locate published MicrophoneManager.exe",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; $hits = Get-ChildItem -Path . -Recurse -Filter MicrophoneManager.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName; $hits | ForEach-Object { Write-Host $_ } ; if (-not $hits) { Write-Host 'No MicrophoneManager.exe found under workspace.'; exit 1 }"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "publish single-file + copy to D:\\utils (script)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}\\scripts\\publish-singlefile-to-utils.ps1"
+			],
+			"isBackground": false
+		}
+	]
+}
