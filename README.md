@@ -101,3 +101,7 @@ MicrophoneManager.Tests/
 ## License
 
 MIT License - Feel free to use and modify as needed.
+
+## Attribution
+
+- Tray icon (`MicrophoneManager.WinUI/Assets/wave-sound.png`): <a href="https://www.flaticon.com/free-icons/radio" title="radio icons">Radio icons created by Freepik - Flaticon</a>

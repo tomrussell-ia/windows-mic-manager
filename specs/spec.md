@@ -288,6 +288,12 @@ As a user, I want the application to immediately reflect any audio setting chang
 - Q: Should the flyout support keyboard navigation for accessibility? → A: No keyboard support - mouse-only interaction
 - Q: How should errors be communicated to the user? → A: Inline message in the flyout (banner or placeholder text)
 
+### Session 2026-01-05
+
+- Q: Does FR-012 ("Set as Both" option) require a dedicated UI button? → A: No. The current UI with separate "Set Default" and "Set Communication" buttons is sufficient. Users can click both buttons to achieve the same result. The underlying `SetBothCommand` exists for programmatic use.
+- Q: How long should error messages display before auto-dismissing? → A: 5 seconds, with manual dismiss option available.
+- Q: What polling interval should be used for external state changes (volume, mute, format)? → A: 1 second interval.
+
 ## Assumptions
 
 - Target platform is Windows 10 version 1809 or later (Windows 11 recommended)
