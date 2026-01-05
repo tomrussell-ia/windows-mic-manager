@@ -16,6 +16,7 @@ public class FakeAudioDeviceService : IAudioDeviceService
     public event EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
     public event EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
     public event EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
+    public event EventHandler<AudioDeviceService.MicrophoneFormatChangedEventArgs>? MicrophoneFormatChanged;
 
     public void AddOrUpdateMicrophone(FakeMicrophone microphone)
     {
@@ -44,15 +45,16 @@ public class FakeAudioDeviceService : IAudioDeviceService
         return GetMicrophones().FirstOrDefault(m => m.Id == DefaultConsoleId);
     }
 
-    public void SetDefaultMicrophone(string deviceId)
+    public bool SetDefaultMicrophone(string deviceId)
     {
-        SetMicrophoneForRole(deviceId, Role.Console);
-        SetMicrophoneForRole(deviceId, Role.Communications);
+        var consoleSuccess = SetMicrophoneForRole(deviceId, Role.Console);
+        var commSuccess = SetMicrophoneForRole(deviceId, Role.Communications);
+        return consoleSuccess && commSuccess;
     }
 
-    public void SetMicrophoneForRole(string deviceId, Role role)
+    public bool SetMicrophoneForRole(string deviceId, Role role)
     {
-        if (!_microphones.ContainsKey(deviceId)) return;
+        if (!_microphones.ContainsKey(deviceId)) return false;
 
         if (role == Role.Console)
         {
@@ -64,6 +66,7 @@ public class FakeAudioDeviceService : IAudioDeviceService
         }
 
         DefaultDeviceChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     public void SetDefaultMicrophoneVolumePercent(double volumePercent)
@@ -158,6 +161,13 @@ public class FakeAudioDeviceService : IAudioDeviceService
         DefaultMicrophoneInputLevelChanged?.Invoke(
             this,
             new AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs(deviceId, inputPercent, inputDbFs));
+    }
+
+    public void RaiseFormatChanged(string deviceId, string formatTag)
+    {
+        MicrophoneFormatChanged?.Invoke(
+            this,
+            new AudioDeviceService.MicrophoneFormatChangedEventArgs(deviceId, formatTag));
     }
 
     public void Dispose()
