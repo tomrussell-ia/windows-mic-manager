@@ -5,18 +5,8 @@
       "name": "Debug WinUI (MicrophoneManager.WinUI)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "dotnet build WinUI (Debug x64)",
-      "program": "${workspaceFolder}\\MicrophoneManager.WinUI\\bin\\x64\\Debug\\net8.0-windows10.0.19041.0\\MicrophoneManager.WinUI.exe",
-      "cwd": "${workspaceFolder}",
-      "console": "internalConsole",
-      "stopAtEntry": false
-    },
-    {
-      "name": "Debug WPF (MicrophoneManager)",
-      "type": "coreclr",
-      "request": "launch",
       "preLaunchTask": "dotnet build (Debug x64)",
-      "program": "${workspaceFolder}\\MicrophoneManager\\bin\\x64\\Debug\\net8.0-windows\\MicrophoneManager.exe",
+      "program": "${workspaceFolder}\\MicrophoneManager.WinUI\\bin\\x64\\Debug\\net8.0-windows10.0.19041.0\\MicrophoneManager.WinUI.exe",
       "cwd": "${workspaceFolder}",
       "console": "internalConsole",
       "stopAtEntry": false
