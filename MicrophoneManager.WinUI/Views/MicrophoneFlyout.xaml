@@ -98,14 +98,14 @@
                                         <Button Command="{x:Bind SetDefaultCommand}"
                                                Width="32" Height="24" Padding="0"
                                                ToolTipService.ToolTip="Set Default"
-                                               Background="{StaticResource HoverBrush}">
+                                               Background="{x:Bind IsDefault, Mode=OneWay, Converter={StaticResource BoolToButtonBrush}}">
                                             <FontIcon Glyph="&#xE720;" FontSize="13" Foreground="White"/>
                                         </Button>
 
                                         <Button Command="{x:Bind SetDefaultCommunicationCommand}"
                                                Width="32" Height="24" Padding="0"
                                                ToolTipService.ToolTip="Set Communications"
-                                               Background="{StaticResource HoverBrush}">
+                                               Background="{x:Bind IsDefaultCommunication, Mode=OneWay, Converter={StaticResource BoolToButtonBrush}}">
                                             <FontIcon Glyph="&#xE8BD;" FontSize="13" Foreground="White"/>
                                         </Button>
                                     </StackPanel>

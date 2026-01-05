@@ -18,6 +18,7 @@
             <converters:PercentFormatConverter x:Key="PercentFormat"/>
             <converters:DbFormatConverter x:Key="DbFormat"/>
             <converters:DbToMeterBrushConverter x:Key="DbToMeterBrush"/>
+            <converters:BoolToButtonBrushConverter x:Key="BoolToButtonBrush"/>
 
             <!-- Color Palette (Dark Theme) -->
             <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
