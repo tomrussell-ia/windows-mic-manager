@@ -1,6 +1,6 @@
-using MicrophoneManager.Models;
+using MicrophoneManager.WinUI.Models;
 using MicrophoneManager.Tests.Fakes;
-using MicrophoneManager.ViewModels;
+using MicrophoneManager.WinUI.ViewModels;
 using Xunit;
 
 namespace MicrophoneManager.Tests;

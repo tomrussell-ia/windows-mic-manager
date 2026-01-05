@@ -1,5 +1,5 @@
-using MicrophoneManager.Models;
-using MicrophoneManager.Services;
+using MicrophoneManager.WinUI.Models;
+using MicrophoneManager.WinUI.Services;
 using NAudio.CoreAudioApi;
 
 namespace MicrophoneManager.Tests.Fakes;
