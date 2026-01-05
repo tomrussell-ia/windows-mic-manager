@@ -1,6 +1,7 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using System;
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace MicrophoneManager.WinUI;
@@ -82,6 +83,19 @@ public sealed partial class MainWindow : Window
 
         TrayIcon?.Dispose();
         Application.Current.Exit();
+    }
+
+    private void IconAttribution_Click(object sender, RoutedEventArgs e)
+    {
+        const string url = "https://www.flaticon.com/free-icons/radio";
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+        }
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

@@ -455,6 +455,11 @@ public sealed partial class MicrophoneFlyout : UserControl
             RequestClose?.Invoke();
         }
     }
+
+    private void DismissError_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.DismissError();
+    }
 }
 
 // Extension methods for MicrophoneEntryViewModel to add helper functions

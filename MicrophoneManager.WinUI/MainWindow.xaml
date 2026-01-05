@@ -12,12 +12,14 @@
                         ToolTipText="Microphone Manager"
                         LeftClickCommand="{x:Bind ShowFlyoutCommand}">
             <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource Text="M" Foreground="#FFFFFFFF" Background="#FF0078D4" FontSize="48"/>
+                <!-- Tray icon: `Assets/wave-sound.png` (see `Assets/ATTRIBUTION.txt`). -->
+                <BitmapImage UriSource="ms-appx:///Assets/wave-sound.png" DecodePixelWidth="32" />
             </tb:TaskbarIcon.IconSource>
 
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem Text="Show" Click="ShowFlyout_Click"/>
+                    <MenuFlyoutItem Text="Icon attribution" Click="IconAttribution_Click" />
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Text="Exit" Click="Exit_Click"/>
                 </MenuFlyout>

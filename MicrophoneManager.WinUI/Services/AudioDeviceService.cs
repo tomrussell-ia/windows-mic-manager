@@ -19,7 +19,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
     private readonly SynchronizationContext? _syncContext;
     private Timer? _externalStatePollTimer;
-    private readonly Dictionary<string, (float VolumeScalar, bool IsMuted)> _lastKnownVolumeMuteById = new();
+    private readonly Dictionary<string, (float VolumeScalar, bool IsMuted, string FormatTag)> _lastKnownStateById = new();
 
     private readonly object _defaultInputMeterLock = new();
     private string? _defaultCaptureDeviceIdWithInputMeter;
@@ -33,6 +33,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     public event EventHandler<DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
     public event EventHandler<MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
     public event EventHandler<DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
+    public event EventHandler<MicrophoneFormatChangedEventArgs>? MicrophoneFormatChanged;
 
     public AudioDeviceService()
     {
@@ -60,15 +61,15 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         // Avoid starting twice
         if (_externalStatePollTimer != null) return;
 
-        // 500ms strikes a balance between responsiveness and cost.
+        // 1 second poll interval for detecting external volume/mute/format changes.
         _externalStatePollTimer = new Timer(
-            _ => _syncContext.Post(_ => PollExternalVolumeMuteChanges(), null),
+            _ => _syncContext.Post(_ => PollExternalStateChanges(), null),
             null,
-            dueTime: 500,
-            period: 500);
+            dueTime: 1000,
+            period: 1000);
     }
 
-    private void PollExternalVolumeMuteChanges()
+    private void PollExternalStateChanges()
     {
         if (_disposed) return;
 
@@ -92,16 +93,17 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         var activeIds = new HashSet<string>(devices.Select(d => d.ID));
 
         // Drop removed devices from state map
-        var removedIds = _lastKnownVolumeMuteById.Keys.Where(id => !activeIds.Contains(id)).ToList();
+        var removedIds = _lastKnownStateById.Keys.Where(id => !activeIds.Contains(id)).ToList();
         foreach (var id in removedIds)
         {
-            _lastKnownVolumeMuteById.Remove(id);
+            _lastKnownStateById.Remove(id);
         }
 
         foreach (var device in devices)
         {
             float volume;
             bool muted;
+            string formatTag;
 
             try
             {
@@ -109,30 +111,49 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
                 if (endpoint == null) continue;
                 volume = endpoint.MasterVolumeLevelScalar;
                 muted = endpoint.Mute;
+                formatTag = GetDeviceFormat(device);
             }
             catch
             {
                 continue;
             }
 
-            if (_lastKnownVolumeMuteById.TryGetValue(device.ID, out var prior)
-                && Math.Abs(prior.VolumeScalar - volume) < 0.0005f
-                && prior.IsMuted == muted)
+            var hasVolumeChanged = false;
+            var hasFormatChanged = false;
+
+            if (_lastKnownStateById.TryGetValue(device.ID, out var prior))
             {
-                continue;
+                hasVolumeChanged = Math.Abs(prior.VolumeScalar - volume) >= 0.0005f || prior.IsMuted != muted;
+                hasFormatChanged = prior.FormatTag != formatTag;
+            }
+            else
+            {
+                // First time seeing this device
+                hasVolumeChanged = true;
+                hasFormatChanged = true;
             }
 
-            _lastKnownVolumeMuteById[device.ID] = (volume, muted);
+            _lastKnownStateById[device.ID] = (volume, muted, formatTag);
 
-            MicrophoneVolumeChanged?.Invoke(
-                this,
-                new MicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
-
-            if (defaultId != null && device.ID == defaultId)
+            if (hasVolumeChanged)
             {
-                DefaultMicrophoneVolumeChanged?.Invoke(
+                MicrophoneVolumeChanged?.Invoke(
                     this,
-                    new DefaultMicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+                    new MicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+
+                if (defaultId != null && device.ID == defaultId)
+                {
+                    DefaultMicrophoneVolumeChanged?.Invoke(
+                        this,
+                        new DefaultMicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+                }
+            }
+
+            if (hasFormatChanged)
+            {
+                MicrophoneFormatChanged?.Invoke(
+                    this,
+                    new MicrophoneFormatChangedEventArgs(device.ID, formatTag));
             }
         }
     }
@@ -229,19 +250,33 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     /// <summary>
     /// Sets the specified device as the default microphone for all roles.
     /// </summary>
-    public void SetDefaultMicrophone(string deviceId)
+    /// <returns>True if both roles were set successfully, false otherwise.</returns>
+    public bool SetDefaultMicrophone(string deviceId)
     {
-        SetMicrophoneForRole(deviceId, Role.Console);
-        SetMicrophoneForRole(deviceId, Role.Communications);
+        var consoleSuccess = SetMicrophoneForRole(deviceId, Role.Console);
+        var commSuccess = SetMicrophoneForRole(deviceId, Role.Communications);
+        return consoleSuccess && commSuccess;
     }
 
-    public void SetMicrophoneForRole(string deviceId, Role role)
+    /// <summary>
+    /// Sets the specified device as the default for the given role.
+    /// </summary>
+    /// <returns>True if successful, false if the operation failed.</returns>
+    public bool SetMicrophoneForRole(string deviceId, Role role)
     {
-        var roleToSet = role == Role.Console
-            ? PolicyConfigService.ERole.eConsole
-            : PolicyConfigService.ERole.eCommunications;
+        try
+        {
+            var roleToSet = role == Role.Console
+                ? PolicyConfigService.ERole.eConsole
+                : PolicyConfigService.ERole.eCommunications;
 
-        PolicyConfigService.SetDefaultDevice(deviceId, roleToSet);
+            PolicyConfigService.SetDefaultDevice(deviceId, roleToSet);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -785,6 +820,18 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         /// Peak level in dBFS (clamped to [-60..0]).
         /// </summary>
         public double InputLevelDbFs { get; }
+    }
+
+    public sealed class MicrophoneFormatChangedEventArgs : EventArgs
+    {
+        public MicrophoneFormatChangedEventArgs(string deviceId, string formatTag)
+        {
+            DeviceId = deviceId;
+            FormatTag = formatTag;
+        }
+
+        public string DeviceId { get; }
+        public string FormatTag { get; }
     }
 
     /// <summary>

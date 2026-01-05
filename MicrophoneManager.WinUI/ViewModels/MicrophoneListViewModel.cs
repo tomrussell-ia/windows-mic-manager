@@ -29,6 +29,7 @@ public partial class MicrophoneListViewModel : ObservableObject
     private readonly EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs> _defaultVolumeChangedHandler;
     private readonly EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs> _microphoneVolumeChangedHandler;
     private readonly EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs> _defaultInputLevelChangedHandler;
+    private readonly EventHandler<AudioDeviceService.MicrophoneFormatChangedEventArgs> _formatChangedHandler;
 
     private const int PeakHoldMilliseconds = 5000;
     private const double PeakDecayDbPerSecond = 20.0;
@@ -56,6 +57,43 @@ public partial class MicrophoneListViewModel : ObservableObject
 
     [ObservableProperty]
     private double _peakMicInputLevelDbFs;
+
+    [ObservableProperty]
+    private string? _errorMessage;
+
+    private DispatcherQueueTimer? _errorDismissTimer;
+    private const int ErrorDismissMilliseconds = 5000;
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+
+    public void ShowError(string message)
+    {
+        ErrorMessage = message;
+        OnPropertyChanged(nameof(HasError));
+
+        // Auto-dismiss after 5 seconds
+        if (_dispatcherQueue != null)
+        {
+            _errorDismissTimer?.Stop();
+            _errorDismissTimer = _dispatcherQueue.CreateTimer();
+            _errorDismissTimer.Interval = TimeSpan.FromMilliseconds(ErrorDismissMilliseconds);
+            _errorDismissTimer.IsRepeating = false;
+            _errorDismissTimer.Tick += (s, e) =>
+            {
+                ErrorMessage = null;
+                OnPropertyChanged(nameof(HasError));
+                _errorDismissTimer?.Stop();
+            };
+            _errorDismissTimer.Start();
+        }
+    }
+
+    public void DismissError()
+    {
+        ErrorMessage = null;
+        OnPropertyChanged(nameof(HasError));
+        _errorDismissTimer?.Stop();
+    }
 
     private void InvokeOnUiThread(Action action)
     {
@@ -158,12 +196,23 @@ public partial class MicrophoneListViewModel : ObservableObject
                 }
             });
 
+        _formatChangedHandler = (s, e) =>
+            InvokeOnUiThread(() =>
+            {
+                var vm = Microphones.FirstOrDefault(m => m.Id == e.DeviceId);
+                if (vm != null)
+                {
+                    vm.FormatTag = e.FormatTag;
+                }
+            });
+
             // Subscribe to changes
             _audioService.DevicesChanged += _devicesChangedHandler;
             _audioService.DefaultDeviceChanged += _defaultDeviceChangedHandler;
             _audioService.DefaultMicrophoneVolumeChanged += _defaultVolumeChangedHandler;
             _audioService.MicrophoneVolumeChanged += _microphoneVolumeChangedHandler;
             _audioService.DefaultMicrophoneInputLevelChanged += _defaultInputLevelChangedHandler;
+            _audioService.MicrophoneFormatChanged += _formatChangedHandler;
 
         // Initial load
         RefreshDevices();
@@ -226,7 +275,7 @@ public partial class MicrophoneListViewModel : ObservableObject
             }
             else
             {
-                Microphones.Add(new MicrophoneEntryViewModel(device, _audioService));
+                Microphones.Add(new MicrophoneEntryViewModel(device, _audioService, ShowError));
             }
 
             seenIds.Add(device.Id);
@@ -366,5 +415,6 @@ public partial class MicrophoneListViewModel : ObservableObject
         try { _audioService.DefaultMicrophoneVolumeChanged -= _defaultVolumeChangedHandler; } catch { }
         try { _audioService.MicrophoneVolumeChanged -= _microphoneVolumeChangedHandler; } catch { }
         try { _audioService.DefaultMicrophoneInputLevelChanged -= _defaultInputLevelChangedHandler; } catch { }
+        try { _audioService.MicrophoneFormatChanged -= _formatChangedHandler; } catch { }
     }
 }

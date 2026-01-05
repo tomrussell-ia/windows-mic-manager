@@ -10,12 +10,13 @@ public interface IAudioDeviceService : IDisposable
     event EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
     event EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
     event EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
+    event EventHandler<AudioDeviceService.MicrophoneFormatChangedEventArgs>? MicrophoneFormatChanged;
 
     List<MicrophoneDevice> GetMicrophones();
     string? GetDefaultDeviceId(Role role);
     MicrophoneDevice? GetDefaultMicrophone();
-    void SetDefaultMicrophone(string deviceId);
-    void SetMicrophoneForRole(string deviceId, Role role);
+    bool SetDefaultMicrophone(string deviceId);
+    bool SetMicrophoneForRole(string deviceId, Role role);
     void SetDefaultMicrophoneVolumePercent(double volumePercent);
     void SetMicrophoneVolumeLevelScalar(string deviceId, float volumeLevelScalar);
     bool ToggleMute(string deviceId);

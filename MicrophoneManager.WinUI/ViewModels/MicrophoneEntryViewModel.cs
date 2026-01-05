@@ -8,6 +8,7 @@ namespace MicrophoneManager.WinUI.ViewModels;
 public partial class MicrophoneEntryViewModel : ObservableObject
 {
     private readonly IAudioDeviceService _audioService;
+    private readonly Action<string>? _onError;
     private bool _suppressVolumeWrite;
     private DateTime _peakHoldUntilUtc;
     private DateTime _lastPeakTickUtc;
@@ -22,9 +23,10 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     // OBS-style ballistics: instant attack, exponential release (~300ms time constant).
     private const double MeterReleaseTimeMs = 300.0;
 
-    public MicrophoneEntryViewModel(MicrophoneDevice device, IAudioDeviceService audioService)
+    public MicrophoneEntryViewModel(MicrophoneDevice device, IAudioDeviceService audioService, Action<string>? onError = null)
     {
         _audioService = audioService;
+        _onError = onError;
         _lastPeakTickUtc = DateTime.UtcNow;
         _lastMeterUpdateUtc = DateTime.UtcNow;
         UpdateFrom(device);
@@ -145,19 +147,28 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     [RelayCommand]
     private void SetDefault()
     {
-        _audioService.SetMicrophoneForRole(Id, NAudio.CoreAudioApi.Role.Console);
+        if (!_audioService.SetMicrophoneForRole(Id, NAudio.CoreAudioApi.Role.Console))
+        {
+            _onError?.Invoke("Failed to set default device");
+        }
     }
 
     [RelayCommand]
     private void SetDefaultCommunication()
     {
-        _audioService.SetMicrophoneForRole(Id, NAudio.CoreAudioApi.Role.Communications);
+        if (!_audioService.SetMicrophoneForRole(Id, NAudio.CoreAudioApi.Role.Communications))
+        {
+            _onError?.Invoke("Failed to set communication device");
+        }
     }
 
     [RelayCommand]
     private void SetBoth()
     {
-        _audioService.SetDefaultMicrophone(Id);
+        if (!_audioService.SetDefaultMicrophone(Id))
+        {
+            _onError?.Invoke("Failed to set default device");
+        }
     }
 
     [RelayCommand]
