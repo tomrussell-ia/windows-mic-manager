@@ -438,7 +438,8 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
             try
             {
-                var capture = new WasapiCapture(device);
+                // Use 5ms buffer for faster meter response (default is 10ms)
+                var capture = new WasapiCapture(device, true, 5);
                 capture.DataAvailable += OnDefaultCaptureDataAvailable;
                 capture.RecordingStopped += OnDefaultCaptureRecordingStopped;
                 capture.StartRecording();
@@ -482,9 +483,9 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         var bufferPeak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
         _accumulatedPeak = Math.Max(_accumulatedPeak, bufferPeak);
 
-        // Throttle UI-facing events to ~60Hz.
+        // Throttle UI-facing events to ~120Hz for fluid meter movement.
         var nowUtc = DateTime.UtcNow;
-        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 16)
+        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 8)
         {
             return;
         }
