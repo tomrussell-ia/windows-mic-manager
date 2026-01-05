@@ -10,6 +10,7 @@ public partial class TrayViewModel : ObservableObject
     private readonly IAudioDeviceService _audioService;
     private readonly Action<bool> _updateIconCallback;
     private readonly DispatcherQueue? _dispatcherQueue;
+    private readonly EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs> _defaultVolumeChangedHandler;
 
     [ObservableProperty]
     private string _tooltipText = "Microphone Manager";
@@ -32,11 +33,27 @@ public partial class TrayViewModel : ObservableObject
         _audioService.DefaultDeviceChanged += OnDefaultDeviceChanged;
         _audioService.DevicesChanged += OnDevicesChanged;
 
+        // Subscribe to default mic volume/mute changes (including external changes)
+        _defaultVolumeChangedHandler = (s, e) => InvokeOnUiThread(UpdateState);
+        _audioService.DefaultMicrophoneVolumeChanged += _defaultVolumeChangedHandler;
+
         // Initial state
         UpdateState();
 
         // Check startup state
         IsStartupEnabled = StartupService.IsStartupEnabled();
+    }
+
+    private void InvokeOnUiThread(Action action)
+    {
+        if (_dispatcherQueue != null)
+        {
+            _dispatcherQueue.TryEnqueue(() => action());
+            return;
+        }
+
+        // Unit tests (and some startup paths) may not have a DispatcherQueue
+        action();
     }
 
     private void UpdateState()
@@ -60,12 +77,12 @@ public partial class TrayViewModel : ObservableObject
 
     private void OnDefaultDeviceChanged(object? sender, EventArgs e)
     {
-        _dispatcherQueue?.TryEnqueue(UpdateState);
+        InvokeOnUiThread(UpdateState);
     }
 
     private void OnDevicesChanged(object? sender, EventArgs e)
     {
-        _dispatcherQueue?.TryEnqueue(UpdateState);
+        InvokeOnUiThread(UpdateState);
     }
 
     [RelayCommand]

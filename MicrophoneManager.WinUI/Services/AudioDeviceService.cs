@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Threading;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
@@ -12,9 +13,13 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     private static readonly Guid SubtypeIeeeFloat = new("00000003-0000-0010-8000-00AA00389B71");
     private readonly MMDeviceEnumerator _enumerator;
     private readonly DeviceNotificationClient _notificationClient;
-    private readonly object _defaultVolumeNotificationLock = new();
-    private string? _defaultCaptureDeviceIdWithVolumeNotifications;
-    private AudioEndpointVolume? _defaultCaptureEndpointVolume;
+    private readonly object _volumeNotificationLock = new();
+    private readonly Dictionary<string, VolumeNotificationSubscription> _volumeNotificationSubscriptions = new();
+    private string? _currentDefaultCaptureDeviceId;
+
+    private readonly SynchronizationContext? _syncContext;
+    private Timer? _externalStatePollTimer;
+    private readonly Dictionary<string, (float VolumeScalar, bool IsMuted)> _lastKnownVolumeMuteById = new();
 
     private readonly object _defaultInputMeterLock = new();
     private string? _defaultCaptureDeviceIdWithInputMeter;
@@ -26,19 +31,114 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     public event EventHandler? DevicesChanged;
     public event EventHandler? DefaultDeviceChanged;
     public event EventHandler<DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
+    public event EventHandler<MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
     public event EventHandler<DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
 
     public AudioDeviceService()
     {
+        _syncContext = SynchronizationContext.Current;
         _enumerator = new MMDeviceEnumerator();
         _notificationClient = new DeviceNotificationClient(this);
         _enumerator.RegisterEndpointNotificationCallback(_notificationClient);
 
-        // Track default microphone volume changes (e.g., changed by other apps)
-        UpdateDefaultMicrophoneVolumeNotificationSubscription();
+        // Track microphone volume/mute changes (e.g., changed by other apps) for ALL capture devices
+        UpdateMicrophoneVolumeNotificationSubscriptions();
+        _currentDefaultCaptureDeviceId = GetDefaultDeviceId(Role.Console);
+
+        // Fallback: poll for external volume/mute changes (Sound settings, other apps)
+        StartExternalStatePolling();
 
         // Track default microphone input level (real-time meter)
         UpdateDefaultMicrophoneInputMeterSubscription();
+    }
+
+    private void StartExternalStatePolling()
+    {
+        // In unit tests, there's typically no UI SynchronizationContext and we don't want background timers.
+        if (_syncContext == null) return;
+
+        // Avoid starting twice
+        if (_externalStatePollTimer != null) return;
+
+        // 500ms strikes a balance between responsiveness and cost.
+        _externalStatePollTimer = new Timer(
+            _ => _syncContext.Post(_ => PollExternalVolumeMuteChanges(), null),
+            null,
+            dueTime: 500,
+            period: 500);
+    }
+
+    private void PollExternalVolumeMuteChanges()
+    {
+        if (_disposed) return;
+
+        System.Diagnostics.Debug.WriteLine($"[AudioDeviceService] Polling external volume/mute state...");
+
+        List<MMDevice> devices;
+        try
+        {
+            devices = _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
+        }
+        catch
+        {
+            return;
+        }
+
+        string? defaultId;
+        lock (_volumeNotificationLock)
+        {
+            defaultId = _currentDefaultCaptureDeviceId ?? GetDefaultDeviceId(Role.Console);
+            _currentDefaultCaptureDeviceId = defaultId;
+        }
+
+        var activeIds = new HashSet<string>(devices.Select(d => d.ID));
+
+        // Drop removed devices from state map
+        var removedIds = _lastKnownVolumeMuteById.Keys.Where(id => !activeIds.Contains(id)).ToList();
+        foreach (var id in removedIds)
+        {
+            _lastKnownVolumeMuteById.Remove(id);
+        }
+
+        foreach (var device in devices)
+        {
+            float volume;
+            bool muted;
+
+            try
+            {
+                var endpoint = device.AudioEndpointVolume;
+                if (endpoint == null) continue;
+                volume = endpoint.MasterVolumeLevelScalar;
+                muted = endpoint.Mute;
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (_lastKnownVolumeMuteById.TryGetValue(device.ID, out var prior)
+                && Math.Abs(prior.VolumeScalar - volume) < 0.0005f
+                && prior.IsMuted == muted)
+            {
+                continue;
+            }
+
+            _lastKnownVolumeMuteById[device.ID] = (volume, muted);
+
+            System.Diagnostics.Debug.WriteLine($"[AudioDeviceService] External change detected: {device.FriendlyName} vol={volume:F2} mute={muted}");
+
+            MicrophoneVolumeChanged?.Invoke(
+                this,
+                new MicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+
+            if (defaultId != null && device.ID == defaultId)
+            {
+                DefaultMicrophoneVolumeChanged?.Invoke(
+                    this,
+                    new DefaultMicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+            }
+        }
     }
 
     /// <summary>
@@ -265,7 +365,14 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
             value = MathF.Max(0f, MathF.Min(1f, value));
 
             var dbFs = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(value));
-            return ObsMeterMath.DbToPercent(dbFs);
+            var percent = ObsMeterMath.DbToPercent(dbFs);
+            
+            if (percent > 1.0) // Only log when there's actual signal
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetDeviceInputLevel] {device.FriendlyName}: peak={value:F3} → {percent:F1}%");
+            }
+            
+            return percent;
         }
         catch
         {
@@ -278,9 +385,21 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         DevicesChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    internal void OnDeviceTopologyChanged()
+    {
+        UpdateMicrophoneVolumeNotificationSubscriptions();
+        DevicesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     internal void OnDefaultDeviceChanged()
     {
-        UpdateDefaultMicrophoneVolumeNotificationSubscription();
+        lock (_volumeNotificationLock)
+        {
+            _currentDefaultCaptureDeviceId = GetDefaultDeviceId(Role.Console);
+        }
+
+        // Ensure we are subscribed to the new default if the device list changed.
+        UpdateMicrophoneVolumeNotificationSubscriptions();
         UpdateDefaultMicrophoneInputMeterSubscription();
         DefaultDeviceChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -480,69 +599,99 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         return 0.0;
     }
 
-    private void UpdateDefaultMicrophoneVolumeNotificationSubscription()
+    private void UpdateMicrophoneVolumeNotificationSubscriptions()
     {
-        lock (_defaultVolumeNotificationLock)
+        List<MMDevice> devices;
+        try
         {
-            var defaultDeviceId = GetDefaultDeviceId(Role.Console);
+            devices = _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
+        }
+        catch
+        {
+            return;
+        }
 
-            if (_defaultCaptureDeviceIdWithVolumeNotifications == defaultDeviceId && _defaultCaptureEndpointVolume != null)
+        var activeIds = new HashSet<string>(devices.Select(d => d.ID));
+
+        lock (_volumeNotificationLock)
+        {
+            // Remove subscriptions for devices that no longer exist/active
+            var toRemove = _volumeNotificationSubscriptions.Keys.Where(id => !activeIds.Contains(id)).ToList();
+            foreach (var id in toRemove)
             {
-                return;
+                if (_volumeNotificationSubscriptions.TryGetValue(id, out var sub))
+                {
+                    try
+                    {
+                        sub.EndpointVolume.OnVolumeNotification -= sub.Handler;
+                    }
+                    catch { }
+                }
+
+                _volumeNotificationSubscriptions.Remove(id);
             }
 
-            if (_defaultCaptureEndpointVolume != null)
+            // Add subscriptions for new active devices
+            foreach (var device in devices)
             {
+                if (_volumeNotificationSubscriptions.ContainsKey(device.ID))
+                {
+                    continue;
+                }
+
+                var endpointVolume = device.AudioEndpointVolume;
+                if (endpointVolume == null)
+                {
+                    continue;
+                }
+
+                // Capture device ID as a string to avoid COM object lifetime issues in the callback
+                string deviceId = device.ID;
+                AudioEndpointVolumeNotificationDelegate handler = (data) => OnMicrophoneVolumeNotification(deviceId, data);
                 try
                 {
-                    _defaultCaptureEndpointVolume.OnVolumeNotification -= OnDefaultMicrophoneVolumeNotification;
+                    endpointVolume.OnVolumeNotification += handler;
+                    _volumeNotificationSubscriptions[device.ID] = new VolumeNotificationSubscription(endpointVolume, handler);
                 }
-                catch { }
-
-                _defaultCaptureEndpointVolume = null;
-                _defaultCaptureDeviceIdWithVolumeNotifications = null;
-            }
-
-            if (defaultDeviceId == null) return;
-
-            var device = GetDeviceById(defaultDeviceId);
-            var endpointVolume = device?.AudioEndpointVolume;
-            if (endpointVolume == null) return;
-
-            _defaultCaptureDeviceIdWithVolumeNotifications = defaultDeviceId;
-            _defaultCaptureEndpointVolume = endpointVolume;
-
-            try
-            {
-                _defaultCaptureEndpointVolume.OnVolumeNotification += OnDefaultMicrophoneVolumeNotification;
-            }
-            catch
-            {
-                _defaultCaptureEndpointVolume = null;
-                _defaultCaptureDeviceIdWithVolumeNotifications = null;
+                catch
+                {
+                    // Ignore - device could disappear or access denied
+                }
             }
         }
     }
 
-    private void OnDefaultMicrophoneVolumeNotification(AudioVolumeNotificationData data)
+    private void OnMicrophoneVolumeNotification(string deviceId, AudioVolumeNotificationData data)
     {
-        string? deviceId;
-        lock (_defaultVolumeNotificationLock)
+        MicrophoneVolumeChanged?.Invoke(
+            this,
+            new MicrophoneVolumeChangedEventArgs(deviceId, data.MasterVolume, data.Muted));
+
+        string? defaultId;
+        lock (_volumeNotificationLock)
         {
-            deviceId = _defaultCaptureDeviceIdWithVolumeNotifications;
+            defaultId = _currentDefaultCaptureDeviceId;
         }
 
-        if (deviceId == null) return;
-
-        DefaultMicrophoneVolumeChanged?.Invoke(
-            this,
-            new DefaultMicrophoneVolumeChangedEventArgs(deviceId, data.MasterVolume, data.Muted));
+        if (defaultId != null && deviceId == defaultId)
+        {
+            DefaultMicrophoneVolumeChanged?.Invoke(
+                this,
+                new DefaultMicrophoneVolumeChangedEventArgs(deviceId, data.MasterVolume, data.Muted));
+        }
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+
+        try
+        {
+            _externalStatePollTimer?.Dispose();
+        }
+        catch { }
+        _externalStatePollTimer = null;
 
         lock (_defaultInputMeterLock)
         {
@@ -572,19 +721,19 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
             }
         }
 
-        lock (_defaultVolumeNotificationLock)
+        lock (_volumeNotificationLock)
         {
-            if (_defaultCaptureEndpointVolume != null)
+            foreach (var subscription in _volumeNotificationSubscriptions.Values)
             {
                 try
                 {
-                    _defaultCaptureEndpointVolume.OnVolumeNotification -= OnDefaultMicrophoneVolumeNotification;
+                    subscription.EndpointVolume.OnVolumeNotification -= subscription.Handler;
                 }
                 catch { }
-
-                _defaultCaptureEndpointVolume = null;
-                _defaultCaptureDeviceIdWithVolumeNotifications = null;
             }
+
+            _volumeNotificationSubscriptions.Clear();
+            _currentDefaultCaptureDeviceId = null;
         }
 
         try
@@ -599,6 +748,20 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     public sealed class DefaultMicrophoneVolumeChangedEventArgs : EventArgs
     {
         public DefaultMicrophoneVolumeChangedEventArgs(string deviceId, float volumeLevelScalar, bool isMuted)
+        {
+            DeviceId = deviceId;
+            VolumeLevelScalar = volumeLevelScalar;
+            IsMuted = isMuted;
+        }
+
+        public string DeviceId { get; }
+        public float VolumeLevelScalar { get; }
+        public bool IsMuted { get; }
+    }
+
+    public sealed class MicrophoneVolumeChangedEventArgs : EventArgs
+    {
+        public MicrophoneVolumeChangedEventArgs(string deviceId, float volumeLevelScalar, bool isMuted)
         {
             DeviceId = deviceId;
             VolumeLevelScalar = volumeLevelScalar;
@@ -646,17 +809,17 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
         public void OnDeviceStateChanged(string deviceId, DeviceState newState)
         {
-            _service.OnDevicesChanged();
+            _service.OnDeviceTopologyChanged();
         }
 
         public void OnDeviceAdded(string pwstrDeviceId)
         {
-            _service.OnDevicesChanged();
+            _service.OnDeviceTopologyChanged();
         }
 
         public void OnDeviceRemoved(string deviceId)
         {
-            _service.OnDevicesChanged();
+            _service.OnDeviceTopologyChanged();
         }
 
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
@@ -671,5 +834,17 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         {
             _service.OnDevicesChanged();
         }
+    }
+
+    private sealed class VolumeNotificationSubscription
+    {
+        public VolumeNotificationSubscription(AudioEndpointVolume endpointVolume, AudioEndpointVolumeNotificationDelegate handler)
+        {
+            EndpointVolume = endpointVolume;
+            Handler = handler;
+        }
+
+        public AudioEndpointVolume EndpointVolume { get; }
+        public AudioEndpointVolumeNotificationDelegate Handler { get; }
     }
 }

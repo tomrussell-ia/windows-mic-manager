@@ -8,6 +8,7 @@ public interface IAudioDeviceService : IDisposable
     event EventHandler? DevicesChanged;
     event EventHandler? DefaultDeviceChanged;
     event EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
+    event EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
     event EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
 
     List<MicrophoneDevice> GetMicrophones();

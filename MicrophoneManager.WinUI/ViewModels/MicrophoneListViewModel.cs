@@ -27,6 +27,7 @@ public partial class MicrophoneListViewModel : ObservableObject
     private readonly EventHandler _devicesChangedHandler;
     private readonly EventHandler _defaultDeviceChangedHandler;
     private readonly EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs> _defaultVolumeChangedHandler;
+    private readonly EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs> _microphoneVolumeChangedHandler;
     private readonly EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs> _defaultInputLevelChangedHandler;
 
     private const int PeakHoldMilliseconds = 5000;
@@ -100,11 +101,31 @@ public partial class MicrophoneListViewModel : ObservableObject
 
                     var defaultVm = Microphones.FirstOrDefault(m => m.Id == defaultId);
                     defaultVm?.ApplyVolumeFromSystem(volumePercent);
+                    if (defaultVm != null)
+                    {
+                        defaultVm.IsMuted = e.IsMuted;
+                    }
                 }
                 finally
                 {
                     _suppressVolumeWrite = false;
                 }
+            });
+
+        _microphoneVolumeChangedHandler = (s, e) =>
+            InvokeOnUiThread(() =>
+            {
+                var vm = Microphones.FirstOrDefault(m => m.Id == e.DeviceId);
+                if (vm == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MicrophoneListViewModel] No VM found for device {e.DeviceId}");
+                    return;
+                }
+
+                var volumePercent = Math.Round(e.VolumeLevelScalar * 100.0, 2);
+                System.Diagnostics.Debug.WriteLine($"[MicrophoneListViewModel] Updating {vm.Name}: vol={volumePercent} mute={e.IsMuted}");
+                vm.ApplyVolumeFromSystem(volumePercent);
+                vm.IsMuted = e.IsMuted;
             });
 
         _defaultInputLevelChangedHandler = (s, e) =>
@@ -143,6 +164,7 @@ public partial class MicrophoneListViewModel : ObservableObject
             _audioService.DevicesChanged += _devicesChangedHandler;
             _audioService.DefaultDeviceChanged += _defaultDeviceChangedHandler;
             _audioService.DefaultMicrophoneVolumeChanged += _defaultVolumeChangedHandler;
+            _audioService.MicrophoneVolumeChanged += _microphoneVolumeChangedHandler;
             _audioService.DefaultMicrophoneInputLevelChanged += _defaultInputLevelChangedHandler;
 
         // Initial load
@@ -320,12 +342,17 @@ public partial class MicrophoneListViewModel : ObservableObject
         // Device name/default/mute/volume changes are handled by other subscriptions.
         var devices = _audioService.GetMicrophones();
         var inputById = devices.ToDictionary(d => d.Id, d => d.InputLevelPercent);
+        var muteById = devices.ToDictionary(d => d.Id, d => d.IsMuted);
 
         foreach (var vm in Microphones)
         {
             if (inputById.TryGetValue(vm.Id, out var inputPercent))
             {
-                vm.UpdateMeter(vm.IsMuted ? 0 : inputPercent);
+                // Use the service's current mute state (not just vm.IsMuted) to ensure we're in sync
+                var shouldMute = muteById.TryGetValue(vm.Id, out var isMuted) && isMuted;
+                var finalLevel = shouldMute ? 0 : inputPercent;
+                System.Diagnostics.Debug.WriteLine($"[RefreshMeters] {vm.Name}: raw={inputPercent:F1}% mute={shouldMute} final={finalLevel:F1}%");
+                vm.UpdateMeter(finalLevel);
             }
         }
     }
@@ -340,6 +367,7 @@ public partial class MicrophoneListViewModel : ObservableObject
         try { _audioService.DevicesChanged -= _devicesChangedHandler; } catch { }
         try { _audioService.DefaultDeviceChanged -= _defaultDeviceChangedHandler; } catch { }
         try { _audioService.DefaultMicrophoneVolumeChanged -= _defaultVolumeChangedHandler; } catch { }
+        try { _audioService.MicrophoneVolumeChanged -= _microphoneVolumeChangedHandler; } catch { }
         try { _audioService.DefaultMicrophoneInputLevelChanged -= _defaultInputLevelChangedHandler; } catch { }
     }
 }

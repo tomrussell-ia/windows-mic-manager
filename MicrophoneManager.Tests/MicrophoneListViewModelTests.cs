@@ -66,6 +66,7 @@ public class MicrophoneListViewModelTests
         Assert.Equal(42, viewModel.CurrentMicLevelPercent);
         Assert.True(viewModel.IsMuted);
         Assert.Equal(42, viewModel.Microphones.First(m => m.Id == "mic-1").VolumePercent);
+        Assert.True(viewModel.Microphones.First(m => m.Id == "mic-1").IsMuted);
     }
 
     [Fact]
@@ -81,6 +82,35 @@ public class MicrophoneListViewModelTests
         Assert.Equal(70, viewModel.CurrentMicInputLevelPercent);
         Assert.Equal(-5, viewModel.CurrentMicInputLevelDbFs);
         Assert.True(viewModel.PeakMicInputLevelPercent >= 70);
+    }
+
+    [Fact]
+    public void PerDeviceVolumeEventsUpdateNonDefaultEntries()
+    {
+        var fakeService = new FakeAudioDeviceService();
+        fakeService.AddOrUpdateMicrophone(new FakeAudioDeviceService.FakeMicrophone("mic-1", "Desk Mic")
+        {
+            VolumeScalar = 0.25,
+            IsMuted = false
+        });
+        fakeService.AddOrUpdateMicrophone(new FakeAudioDeviceService.FakeMicrophone("mic-2", "Headset")
+        {
+            VolumeScalar = 0.80,
+            IsMuted = false
+        });
+        fakeService.DefaultConsoleId = "mic-1";
+
+        var viewModel = new MicrophoneListViewModel(fakeService);
+
+        // Simulate an external change to a non-default mic.
+        fakeService.RaiseMicrophoneVolumeChanged("mic-2", 0.33f, true);
+
+        var updated = viewModel.Microphones.First(m => m.Id == "mic-2");
+        Assert.Equal(33, updated.VolumePercent);
+        Assert.True(updated.IsMuted);
+
+        // Default mic UI stays driven by default-specific events.
+        Assert.Equal("mic-1", viewModel.SelectedMicrophone?.Id);
     }
 
     [Fact]
