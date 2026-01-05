@@ -33,10 +33,10 @@
     <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.DataGrid" Version="7.1.2" />
     <!-- System tray icon support -->
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.1.3" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MicrophoneManager.Core\MicrophoneManager.Core.csproj" />
+    <!-- Audio Device Management -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- MVVM Toolkit -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 
   <ItemGroup>

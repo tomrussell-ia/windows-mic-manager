@@ -16,6 +16,8 @@
             <converters:MuteStateToIconConverter x:Key="MuteStateToIcon"/>
             <converters:MuteStateToLabelConverter x:Key="MuteStateToLabel"/>
             <converters:PercentFormatConverter x:Key="PercentFormat"/>
+            <converters:DbFormatConverter x:Key="DbFormat"/>
+            <converters:DbToMeterBrushConverter x:Key="DbToMeterBrush"/>
 
             <!-- Color Palette (Dark Theme) -->
             <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
@@ -30,6 +32,11 @@
                 <GradientStop Color="#E6C84A" Offset="0.85"/>
                 <GradientStop Color="#E45B5B" Offset="1.00"/>
             </LinearGradientBrush>
+
+            <!-- Meter Solid Colors (same palette as gradient stops) -->
+            <SolidColorBrush x:Key="MeterGreenBrush" Color="#3CCB5C"/>
+            <SolidColorBrush x:Key="MeterYellowBrush" Color="#E6C84A"/>
+            <SolidColorBrush x:Key="MeterRedBrush" Color="#E45B5B"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

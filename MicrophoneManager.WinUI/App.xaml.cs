@@ -22,6 +22,13 @@ public partial class App : Application
         }
         catch { }
     }
+
+    internal static void Trace(string message)
+    {
+#if DEBUG
+        LogError(message);
+#endif
+    }
     /// <summary>
     /// Dependency injection host
     /// </summary>
@@ -69,21 +76,21 @@ public partial class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         // Register services
-        services.AddSingleton<MicrophoneManager.Core.Services.IAudioDeviceService, MicrophoneManager.Core.Services.AudioDeviceService>();
+        services.AddSingleton<MicrophoneManager.WinUI.Services.IAudioDeviceService, MicrophoneManager.WinUI.Services.AudioDeviceService>();
 
         // Register ViewModels
-        services.AddSingleton<MicrophoneManager.Core.ViewModels.TrayViewModel>(sp =>
+        services.AddSingleton<MicrophoneManager.WinUI.ViewModels.TrayViewModel>(sp =>
         {
-            var audioService = sp.GetRequiredService<MicrophoneManager.Core.Services.IAudioDeviceService>();
+            var audioService = sp.GetRequiredService<MicrophoneManager.WinUI.Services.IAudioDeviceService>();
             // Icon update callback will be set in MainWindow
-            return new MicrophoneManager.Core.ViewModels.TrayViewModel(audioService, _ => { });
+            return new MicrophoneManager.WinUI.ViewModels.TrayViewModel(audioService, _ => { });
         });
 
-        services.AddTransient<MicrophoneManager.Core.ViewModels.MicrophoneListViewModel>();
+        services.AddTransient<MicrophoneManager.WinUI.ViewModels.MicrophoneListViewModel>();
 
         // Register views
         services.AddSingleton<MainWindow>();
-        services.AddTransient<Views.FlyoutWindow>();
+        services.AddTransient<Views.MicrophoneWindow>();
         services.AddTransient<Views.MicrophoneFlyout>();
     }
 
@@ -101,8 +108,8 @@ public partial class App : Application
             LogError("DispatcherQueue obtained");
 
             // Initialize services
-            AudioService = Host.Services.GetRequiredService<MicrophoneManager.Core.Services.IAudioDeviceService>();
-            TrayViewModel = Host.Services.GetRequiredService<MicrophoneManager.Core.ViewModels.TrayViewModel>();
+            AudioService = Host.Services.GetRequiredService<MicrophoneManager.WinUI.Services.IAudioDeviceService>();
+            TrayViewModel = Host.Services.GetRequiredService<MicrophoneManager.WinUI.ViewModels.TrayViewModel>();
 
             // Create and activate main window (will be hidden, hosts tray icon)
             LogError("Creating MainWindow");

@@ -11,7 +11,7 @@ namespace MicrophoneManager.WinUI;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    private Views.FlyoutWindow? _flyoutWindow;
+    private Views.MicrophoneWindow? _flyoutWindow;
 
     public ICommand ShowFlyoutCommand { get; }
 
@@ -56,7 +56,7 @@ public sealed partial class MainWindow : Window
     {
         if (_flyoutWindow == null || !IsWindowVisible(_flyoutWindow))
         {
-            _flyoutWindow = new Views.FlyoutWindow();
+            _flyoutWindow = new Views.MicrophoneWindow(isDocked: false);
             _flyoutWindow.Activate();
         }
         else
