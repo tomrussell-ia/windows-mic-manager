@@ -2,17 +2,28 @@
 
 ## Project Overview
 
-This is a Windows system tray application for quick microphone selection and control, targeting Windows 10/11. Built with **C# WPF on .NET 8**.
+This is a Windows system tray application for quick microphone selection and control, targeting Windows 10/11. Built with **C# WinUI 3 on .NET 8**.
 
 **Core Purpose**: Provide comprehensive visibility and control over ALL audio input devices—not just the default. Users need to see and control non-default microphones that applications may be actively using (e.g., game using headset mic while default is a desk mic).
 
-## Critical Architecture Patterns
+## Architecture (WinUI 3 Consolidated)
+
+**2025 Migration Complete**: This project was consolidated from a multi-project structure (WPF + Core + WinUI) into a single **WinUI-only codebase**. All business logic, services, ViewModels, and converters now reside in the **`MicrophoneManager.WinUI`** project.
+
+### Project Structure
+- **MicrophoneManager.WinUI/** — Single application project (WinUI 3)
+  - `Services/` — Audio device management & system integration
+  - `Models/` — Data models (MicrophoneDevice)
+  - `ViewModels/` — MVVM logic (TrayViewModel, MicrophoneListViewModel, MicrophoneEntryViewModel)
+  - `Views/` — XAML UI components (MainWindow, MicrophoneWindow, MicrophoneFlyout)
+  - `Converters/` — XAML value converters
+- **MicrophoneManager.Tests/** — xUnit test suite (targets WinUI project)
 
 ### Windows Audio API Integration (Undocumented)
 
 The application uses **NAudio + undocumented IPolicyConfig COM interface** to set default devices. This is the standard approach used by utilities like EarTrumpet.
 
-- **[PolicyConfigService.cs](MicrophoneManager/Services/PolicyConfigService.cs)**: COM interop wrapper for `IPolicyConfig`
+- **[PolicyConfigService.cs](MicrophoneManager.WinUI/Services/PolicyConfigService.cs)**: COM interop wrapper for `IPolicyConfig`
   - Must maintain exact vtable order (Reserved1-10 placeholders)
   - Sets default device for `eConsole` (general apps) and `eCommunications` (Teams/Zoom) roles **independently**
   - `SetDefaultDeviceForAllRoles()` is the common case but separate role control is essential
@@ -25,7 +36,7 @@ ERole.eCommunications  // VoIP apps (Teams, Zoom, Discord)
 
 ### Service Layer Architecture
 
-**[AudioDeviceService.cs](MicrophoneManager/Services/AudioDeviceService.cs)** (~780 lines) is the core audio management service:
+**[AudioDeviceService.cs](MicrophoneManager.WinUI/Services/AudioDeviceService.cs)** (~780 lines) is the core audio management service:
 
 - Device enumeration via NAudio's `MMDeviceEnumerator`
 - Real-time device change notifications via `IMMNotificationClient`
@@ -36,20 +47,20 @@ ERole.eCommunications  // VoIP apps (Teams, Zoom, Discord)
 **Key Pattern**: Service maintains subscriptions to default device changes and raises events for ViewModels to handle on UI thread:
 ```csharp
 _audioService.DefaultDeviceChanged += (s, e) => 
-    Application.Current?.Dispatcher?.BeginInvoke(RefreshDevices);
+    Application.Current?.Dispatcher?.TryEnqueue(RefreshDevices);
 ```
 
 ### MVVM with CommunityToolkit.Mvvm
 
 - ViewModels use `[ObservableProperty]` and `[RelayCommand]` source generators
 - All ViewModels inherit `ObservableObject`
-- **UI thread marshaling**: Service events invoke `Dispatcher.BeginInvoke()` to safely update UI properties
+- **UI thread marshaling**: Service events invoke `DispatcherQueue.TryEnqueue()` to safely update UI properties
 - **Suppress loops**: Use `_suppressVolumeWrite` flags when handling external volume changes to prevent feedback loops
 
-Example from [MicrophoneListViewModel.cs](MicrophoneManager/ViewModels/MicrophoneListViewModel.cs#L71-L85):
+Example from [MicrophoneListViewModel.cs](MicrophoneManager.WinUI/ViewModels/MicrophoneListViewModel.cs#L71-L85):
 ```csharp
 _audioService.DefaultMicrophoneVolumeChanged += (s, e) =>
-    Application.Current?.Dispatcher?.BeginInvoke(() =>
+    Application.Current?.Dispatcher?.TryEnqueue(() =>
     {
         _suppressVolumeWrite = true;  // Prevent feedback loop
         try { CurrentMicLevelPercent = e.VolumeLevelScalar * 100.0; }
@@ -61,40 +72,33 @@ _audioService.DefaultMicrophoneVolumeChanged += (s, e) =>
 
 ### Development Build
 ```powershell
-dotnet build MicrophoneManager/MicrophoneManager.csproj
+dotnet build MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -p:Platform=x64
 ```
 
 ### Release Single-File Executable
 ```powershell
 # Uses checked-in publish profile (recommended)
-dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
+dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-singlefile
 
-# Output: publish\win-x64-singlefile\MicrophoneManager.exe
+# Output: publish\win-x64-singlefile\MicrophoneManager.WinUI.exe
 ```
 
-**Note**: Regular `dotnet build` produces development layout (many files). For distribution, always use `dotnet publish` with the profile.
+**Note**: Regular `dotnet build` requires `-p:Platform=x64` due to WinUI 3 requirements. For distribution, always use `dotnet publish` with the profile.
 
 ### Testing Strategy
 
-**Current State**: Manual testing only. Tests needed.
-
-**Recommended Approach** (based on [specs/spec.md](specs/spec.md) acceptance scenarios):
+**Current State**: xUnit tests with 8 core scenarios passing.
 
 ```powershell
-# Unit tests for core services
-dotnet test MicrophoneManager.Tests/  # Project to create
-
-# Key areas to test:
-# - PolicyConfigService: Mock COM interface, verify role assignments
-# - AudioDeviceService: Mock MMDeviceEnumerator, test event subscriptions
-# - ViewModels: Test Dispatcher marshaling, suppress flags, command logic
+# Run all tests
+dotnet test MicrophoneManager.Tests/ -p:Platform=x64
 ```
 
-**Test Scenarios from Spec** (Priority P1-P2):
+**Test Coverage** (from [MicrophoneManager.Tests/](MicrophoneManager.Tests/)):
 - Device enumeration and role detection (Console vs Communications)
 - Volume/mute state changes with external sync
-- Device hot-plug detection and list updates
-- UI thread marshaling for service events
+- ViewModel meter calculations and peak hold
+- Command execution for setting default devices
 - Feedback loop prevention (`_suppressVolumeWrite` flags)
 
 **Manual Testing Checklist**:
@@ -117,12 +121,13 @@ dotnet test MicrophoneManager.Tests/  # Project to create
 - Tray icon reflects Default Device mute state only (not other devices)
 
 ### System Tray Pattern
-- [MainWindow.xaml](MicrophoneManager/MainWindow.xaml) hosts the tray icon (via H.NotifyIcon.Wpf) but hides itself
-- [FlyoutWindow.xaml](MicrophoneManager/Views/FlyoutWindow.xaml) is a topmost, no-taskbar window positioned near tray icon
+- [MainWindow.xaml](MicrophoneManager.WinUI/MainWindow.xaml) hosts the main window and initializes services
+- [FlyoutWindow.xaml](MicrophoneManager.WinUI/Views/FlyoutWindow.xaml) is a topmost, no-taskbar window positioned near tray icon
 - Flyout closes when losing focus (`Deactivated` event)
+- System tray icon provided by H.NotifyIcon.WinUI library
 
 ### Icon Generation
-[IconGenerator.cs](MicrophoneManager/Services/IconGenerator.cs) creates tray icons programmatically:
+[IconGenerator.cs](MicrophoneManager.WinUI/Services/IconGenerator.cs) creates tray icons programmatically:
 - Draws microphone glyph with red slash for muted state
 - Returns `System.Drawing.Icon` for tray
 - Must call `Icon.Dispose()` when updating to prevent memory leaks
@@ -190,12 +195,11 @@ else
 - **No per-device input metering yet**: Only default device shows real-time levels (P3 feature)
 - **IPolicyConfig unsupported by Microsoft**: Works reliably but could break in future Windows updates
 - **Single-file publish size**: ~150MB due to self-contained .NET runtime + compression
-- **No automated tests**: Manual testing only (see Testing Strategy section)
 
 ## External Dependencies
 
 - **NAudio 2.2.1**: Audio device enumeration and WASAPI capture
-- **H.NotifyIcon.Wpf 2.1.3**: System tray icon implementation
+- **H.NotifyIcon.WinUI 2.1.3**: System tray icon implementation
 - **CommunityToolkit.Mvvm 8.3.2**: MVVM source generators
 
 ## Spec-Kit Integration
@@ -207,4 +211,4 @@ Project uses [github/spec-kit](https://github.com/github/spec-kit) workflow (see
 
 ---
 
-**Quick Start**: Run `dotnet build`, launch `MicrophoneManager.exe` from `bin/x64/Debug/`, click tray icon to see microphone list.
+**Quick Start**: Run `dotnet build MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -p:Platform=x64`, launch `MicrophoneManager.WinUI.exe` from `bin/x64/Debug/`, click tray icon to see microphone list.
