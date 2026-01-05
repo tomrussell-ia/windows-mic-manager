@@ -1,7 +1,6 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using System;
-using System.Diagnostics;
 using System.Windows.Input;
 
 namespace MicrophoneManager.WinUI;
@@ -17,13 +16,10 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        Debug.WriteLine("MainWindow constructor starting");
-
         // Create command before InitializeComponent (needed for x:Bind)
         ShowFlyoutCommand = new RelayCommand(() => ShowFlyout());
 
         InitializeComponent();
-        Debug.WriteLine("MainWindow InitializeComponent completed");
 
         // Don't show in taskbar/switchers
         AppWindow.IsShownInSwitchers = false;
@@ -42,7 +38,6 @@ public sealed partial class MainWindow : Window
         // IMPORTANT: Hide() causes app exit in WinUI 3 - must use off-screen positioning instead
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            Debug.WriteLine("Moving MainWindow off-screen");
             AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(-32000, -32000, 1, 1));
         });
     }

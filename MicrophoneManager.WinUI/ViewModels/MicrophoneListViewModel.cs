@@ -118,12 +118,10 @@ public partial class MicrophoneListViewModel : ObservableObject
                 var vm = Microphones.FirstOrDefault(m => m.Id == e.DeviceId);
                 if (vm == null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[MicrophoneListViewModel] No VM found for device {e.DeviceId}");
                     return;
                 }
 
                 var volumePercent = Math.Round(e.VolumeLevelScalar * 100.0, 2);
-                System.Diagnostics.Debug.WriteLine($"[MicrophoneListViewModel] Updating {vm.Name}: vol={volumePercent} mute={e.IsMuted}");
                 vm.ApplyVolumeFromSystem(volumePercent);
                 vm.IsMuted = e.IsMuted;
             });
@@ -351,7 +349,6 @@ public partial class MicrophoneListViewModel : ObservableObject
                 // Use the service's current mute state (not just vm.IsMuted) to ensure we're in sync
                 var shouldMute = muteById.TryGetValue(vm.Id, out var isMuted) && isMuted;
                 var finalLevel = shouldMute ? 0 : inputPercent;
-                System.Diagnostics.Debug.WriteLine($"[RefreshMeters] {vm.Name}: raw={inputPercent:F1}% mute={shouldMute} final={finalLevel:F1}%");
                 vm.UpdateMeter(finalLevel);
             }
         }

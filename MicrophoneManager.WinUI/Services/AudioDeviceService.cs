@@ -72,8 +72,6 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     {
         if (_disposed) return;
 
-        System.Diagnostics.Debug.WriteLine($"[AudioDeviceService] Polling external volume/mute state...");
-
         List<MMDevice> devices;
         try
         {
@@ -125,8 +123,6 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
             }
 
             _lastKnownVolumeMuteById[device.ID] = (volume, muted);
-
-            System.Diagnostics.Debug.WriteLine($"[AudioDeviceService] External change detected: {device.FriendlyName} vol={volume:F2} mute={muted}");
 
             MicrophoneVolumeChanged?.Invoke(
                 this,
@@ -366,11 +362,6 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
             var dbFs = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(value));
             var percent = ObsMeterMath.DbToPercent(dbFs);
-            
-            if (percent > 1.0) // Only log when there's actual signal
-            {
-                System.Diagnostics.Debug.WriteLine($"[GetDeviceInputLevel] {device.FriendlyName}: peak={value:F3} → {percent:F1}%");
-            }
             
             return percent;
         }

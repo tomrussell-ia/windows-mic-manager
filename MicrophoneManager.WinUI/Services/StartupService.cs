@@ -51,9 +51,9 @@ public static class StartupService
                 key.DeleteValue(AppName, false);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            System.Diagnostics.Debug.WriteLine($"Error setting startup: {ex.Message}");
+            // Silently fail - registry access may be restricted
         }
     }
 
