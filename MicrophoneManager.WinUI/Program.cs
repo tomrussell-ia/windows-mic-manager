@@ -9,12 +9,19 @@ namespace MicrophoneManager.WinUI;
 public static class Program
 {
     private static string LogPath => Path.Combine(AppContext.BaseDirectory, "startup_error.log");
+    private static string DebugLogPath => Path.Combine(Path.GetTempPath(), "MicrophoneManager_startup.log");
 
     private static void Log(string message)
     {
+        var logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
         try
         {
-            File.AppendAllText(LogPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+            File.AppendAllText(LogPath, logMessage);
+        }
+        catch { }
+        try
+        {
+            File.AppendAllText(DebugLogPath, logMessage);
         }
         catch { }
     }
@@ -61,7 +68,7 @@ public static class Program
             Log($"FATAL ERROR: {ex}");
 
             // Also show a message box for visibility
-            _ = MessageBox(IntPtr.Zero, $"Application failed to start:\n\n{ex.Message}\n\nSee startup_error.log for details.", "Microphone Manager Error", 0x10);
+            _ = MessageBox(IntPtr.Zero, $"Application failed to start:\n\n{ex.Message}\n\nSee log file for details:\n{DebugLogPath}", "Microphone Manager Error", 0x10);
         }
     }
 

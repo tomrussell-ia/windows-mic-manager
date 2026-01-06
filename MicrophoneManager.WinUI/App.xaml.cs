@@ -54,9 +54,6 @@ public partial class App : Application
         {
             LogError("App constructor starting");
 
-            // Required for PublishSingleFile with Windows App SDK
-            Environment.SetEnvironmentVariable("MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY", AppContext.BaseDirectory);
-
             InitializeComponent();
             LogError("InitializeComponent completed");
 
