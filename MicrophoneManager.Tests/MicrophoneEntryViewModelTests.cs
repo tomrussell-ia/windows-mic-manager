@@ -142,7 +142,7 @@ public class MicrophoneEntryViewModelTests
         {
             Id = "mic-1",
             Name = "Unknown Mic",
-            FormatTag = null
+            FormatTag = null!
         };
 
         // Act
