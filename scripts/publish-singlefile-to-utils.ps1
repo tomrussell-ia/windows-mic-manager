@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$DestinationDir = 'D:\utils',
-    [string]$Project = 'MicrophoneManager\MicrophoneManager.csproj',
+    [string]$Project = 'MicrophoneManager.WinUI\MicrophoneManager.WinUI.csproj',
     [string]$PublishProfile = 'win-x64-singlefile'
 )
 
@@ -16,10 +16,10 @@ dotnet publish (Join-Path $repoRoot $Project) -c Release -p:PublishProfile=$Publ
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # Primary expected output (repo root, per publish profile)
-$expected = Join-Path $repoRoot 'publish\win-x64-singlefile\MicrophoneManager.exe'
+$expected = Join-Path $repoRoot 'publish\win-x64-singlefile\MicrophoneManager.WinUI.exe'
 
 # Fallback: SDK default publish location
-$fallback = Join-Path $repoRoot 'MicrophoneManager\bin\Release\net8.0-windows\win-x64\publish\MicrophoneManager.exe'
+$fallback = Join-Path $repoRoot 'MicrophoneManager.WinUI\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\MicrophoneManager.WinUI.exe'
 
 $src = if (Test-Path -LiteralPath $expected) { $expected } elseif (Test-Path -LiteralPath $fallback) { $fallback } else { $null }
 
@@ -28,7 +28,7 @@ if (-not $src) {
     Write-Host "  $expected" -ForegroundColor Yellow
     Write-Host "  $fallback" -ForegroundColor Yellow
 
-    $hits = Get-ChildItem -Path $repoRoot -Recurse -Filter MicrophoneManager.exe -ErrorAction SilentlyContinue |
+    $hits = Get-ChildItem -Path $repoRoot -Recurse -Filter MicrophoneManager.WinUI.exe -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -match '\\publish\\|\\win-x64\\' } |
         Select-Object -First 20
 
@@ -37,7 +37,7 @@ if (-not $src) {
         $hits | ForEach-Object { Write-Host ("  " + $_.FullName) -ForegroundColor Yellow }
     }
 
-    throw "Publish output MicrophoneManager.exe not found."
+    throw "Publish output MicrophoneManager.WinUI.exe not found."
 }
 
 New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null

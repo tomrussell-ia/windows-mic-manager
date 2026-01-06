@@ -1,0 +1,43 @@
+<Application
+    x:Class="MicrophoneManager.WinUI.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MicrophoneManager.WinUI"
+    xmlns:converters="using:MicrophoneManager.WinUI.Converters">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            <converters:MuteStateToIconConverter x:Key="MuteStateToIcon"/>
+            <converters:MuteStateToLabelConverter x:Key="MuteStateToLabel"/>
+            <converters:PercentFormatConverter x:Key="PercentFormat"/>
+            <converters:DbFormatConverter x:Key="DbFormat"/>
+            <converters:DbToMeterBrushConverter x:Key="DbToMeterBrush"/>
+            <converters:BoolToButtonBrushConverter x:Key="BoolToButtonBrush"/>
+
+            <!-- Color Palette (Dark Theme) -->
+            <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+            <SolidColorBrush x:Key="BackgroundBrush" Color="#2D2D2D"/>
+            <SolidColorBrush x:Key="ForegroundBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="HoverBrush" Color="#3D3D3D"/>
+
+            <!-- Meter Gradient (green → yellow → red) -->
+            <LinearGradientBrush x:Key="MeterGradientBrush" StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#3CCB5C" Offset="0.00"/>
+                <GradientStop Color="#3CCB5C" Offset="0.70"/>
+                <GradientStop Color="#E6C84A" Offset="0.85"/>
+                <GradientStop Color="#E45B5B" Offset="1.00"/>
+            </LinearGradientBrush>
+
+            <!-- Meter Solid Colors (same palette as gradient stops) -->
+            <SolidColorBrush x:Key="MeterGreenBrush" Color="#3CCB5C"/>
+            <SolidColorBrush x:Key="MeterYellowBrush" Color="#E6C84A"/>
+            <SolidColorBrush x:Key="MeterRedBrush" Color="#E45B5B"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

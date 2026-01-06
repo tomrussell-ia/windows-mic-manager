@@ -1,6 +1,6 @@
 # Windows Microphone Manager
 
-A Windows 11 system tray application for quick microphone selection, similar to the native speaker quick-select flyout.
+A Windows 10/11 system tray application for quick microphone selection, similar to the native speaker quick-select flyout.
 
 ## Features
 
@@ -20,35 +20,29 @@ A Windows 11 system tray application for quick microphone selection, similar to 
 ### Prerequisites
 
 - .NET 8.0 SDK
+- Windows SDK 10.0.19041.0 or later
 
 ### Build from command line
 
 ```bash
-cd MicrophoneManager
-dotnet build
+dotnet build MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -p:Platform=x64
 ```
 
-Note: `dotnet build` produces a normal development layout (lots of files). For distribution as a single `.exe`, use `dotnet publish`.
+**Note**: WinUI 3 requires the `-p:Platform=x64` parameter.
 
 ### Build portable EXE (Release)
-
-```bash
-dotnet publish -c Release -r win-x64 --self-contained true
-```
-
-For this repo, Release publishing is configured to produce a **single, self-contained** `MicrophoneManager.exe`.
 
 Recommended (uses the checked-in publish profile):
 
 ```bash
-dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
+dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-singlefile
 ```
 
-The output will be in `publish\win-x64-singlefile\`.
+The output will be in `publish\win-x64-singlefile\MicrophoneManager.WinUI.exe`.
 
 ## Usage
 
-1. Run `MicrophoneManager.exe`
+1. Run `MicrophoneManager.WinUI.exe`
 2. A microphone icon appears in the system tray
 3. **Left-click** the icon to open the microphone selection flyout
 4. Click on any microphone to set it as the default
@@ -59,8 +53,8 @@ The output will be in `publish\win-x64-singlefile\`.
 
 ### Architecture
 
-- **Framework**: WPF (.NET 8)
-- **System Tray**: H.NotifyIcon.Wpf
+- **Framework**: WinUI 3 (.NET 8)
+- **System Tray**: H.NotifyIcon.WinUI
 - **Audio Management**: NAudio + IPolicyConfig COM interface
 - **MVVM**: CommunityToolkit.Mvvm
 
@@ -79,24 +73,35 @@ This application sets both roles when you select a microphone.
 ## Project Structure
 
 ```
-MicrophoneManager/
+MicrophoneManager.WinUI/
 ├── App.xaml                    # Application entry
-├── MainWindow.xaml             # Hidden window hosting tray icon
+├── MainWindow.xaml             # Main window with tray icon
 ├── Views/
+│   ├── FlyoutWindow.xaml       # Flyout window container
 │   └── MicrophoneFlyout.xaml   # Flyout UI with device list
 ├── ViewModels/
 │   ├── TrayViewModel.cs        # Tray icon state
-│   └── MicrophoneListViewModel.cs
+│   ├── MicrophoneListViewModel.cs
+│   └── MicrophoneEntryViewModel.cs
 ├── Services/
 │   ├── AudioDeviceService.cs   # NAudio device enumeration
 │   ├── PolicyConfigService.cs  # IPolicyConfig wrapper (set defaults)
+│   ├── ObsMeterMath.cs         # OBS-style meter calculations
+│   ├── StartupService.cs       # Windows startup configuration
 │   └── IconGenerator.cs        # Programmatic icon generation
 ├── Models/
 │   └── MicrophoneDevice.cs     # Device data model
 └── Converters/
-    └── BoolToVisibilityConverter.cs
+    └── [XAML value converters]
+
+MicrophoneManager.Tests/
+└── [xUnit test suite]
 ```
 
 ## License
 
 MIT License - Feel free to use and modify as needed.
+
+## Attribution
+
+- Tray icon (`MicrophoneManager.WinUI/Assets/wave-sound.png`): <a href="https://www.flaticon.com/free-icons/radio" title="radio icons">Radio icons created by Freepik - Flaticon</a>

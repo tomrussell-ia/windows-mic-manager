@@ -1,0 +1,84 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "dotnet clean+build (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet clean .\\MicrophoneManager.sln -v minimal -p:Platform=x64; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; dotnet build .\\MicrophoneManager.sln -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "dotnet build (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet build .\\MicrophoneManager.sln -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": "build"
+		},
+		{
+			"label": "dotnet run WinUI (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet run --project .\\MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj -c Debug -p:Platform=x64 --no-build"
+			],
+			"dependsOn": [
+				"dotnet build (Debug x64)"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "dotnet test (Debug x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; dotnet test .\\MicrophoneManager.Tests\\MicrophoneManager.Tests.csproj -c Debug -v minimal -p:Platform=x64"
+			],
+			"isBackground": false,
+			"problemMatcher": "$msCompile",
+			"group": "test"
+		},
+		{
+			"label": "publish single-file (win-x64)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"& { Set-Location '${workspaceFolder}'; dotnet publish .\\MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-singlefile; if ($LASTEXITCODE -eq 0) { Copy-Item -Path '.\\MicrophoneManager.WinUI\\bin\\Release\\net8.0-windows10.0.19041.0\\win-x64\\publish\\MicrophoneManager.WinUI.exe' -Destination 'D:\\utils\\MicrophoneManager.exe' -Force; Write-Host 'Copied to D:\\utils\\MicrophoneManager.exe' -ForegroundColor Green } }"
+			],
+			"problemMatcher": "$msCompile",
+			"group": "build"
+		}
+	]
+}
