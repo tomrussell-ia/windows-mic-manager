@@ -67,15 +67,15 @@
 			"group": "test"
 		},
 		{
-			"label": "publish single-file (win-x64)",
+			"label": "publish folder (win-x64)",
 			"type": "shell",
 			"command": "powershell",
 			"args": [
 				"-NoProfile",
 				"-ExecutionPolicy",
 				"Bypass",
-				"-Command",
-				"& { Set-Location '${workspaceFolder}'; dotnet publish .\\MicrophoneManager.WinUI\\MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-singlefile; if ($LASTEXITCODE -eq 0) { Copy-Item -Path '.\\MicrophoneManager.WinUI\\bin\\Release\\net8.0-windows10.0.19041.0\\win-x64\\publish\\MicrophoneManager.WinUI.exe' -Destination 'D:\\utils\\MicrophoneManager.exe' -Force; Write-Host 'Copied to D:\\utils\\MicrophoneManager.exe' -ForegroundColor Green } }"
+				"-File",
+				"${workspaceFolder}\\scripts\\publish-folder-to-utils.ps1"
 			],
 			"problemMatcher": "$msCompile",
 			"group": "build"
