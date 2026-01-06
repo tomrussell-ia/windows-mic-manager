@@ -18,10 +18,12 @@
 
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
-                    <MenuFlyoutItem Text="Show" Click="ShowFlyout_Click"/>
-                    <MenuFlyoutItem Text="Icon attribution" Click="IconAttribution_Click" />
+                    <MenuFlyoutItem Text="Show" Command="{x:Bind ShowFlyoutCommand}"/>
+                    <MenuFlyoutItem Text="Icon attribution" Command="{x:Bind IconAttributionCommand}" />
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Text="Exit" Click="Exit_Click"/>
+                    <MenuFlyoutItem Text="{x:Bind StartupMenuText, Mode=OneWay}" Command="{x:Bind ToggleStartupCommand}" />
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="Exit" Command="{x:Bind ExitCommand}"/>
                 </MenuFlyout>
             </tb:TaskbarIcon.ContextFlyout>
         </tb:TaskbarIcon>
