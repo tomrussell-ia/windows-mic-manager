@@ -22,12 +22,18 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     private Timer? _externalStatePollTimer;
     private readonly Dictionary<string, (float VolumeScalar, bool IsMuted, string FormatTag)> _lastKnownStateById = new();
 
-    private readonly object _defaultInputMeterLock = new();
-    private string? _defaultCaptureDeviceIdWithInputMeter;
-    private WasapiCapture? _defaultCapture;
-    private DateTime _lastInputMeterRaisedAtUtc = DateTime.MinValue;
-    private double _accumulatedPeak = 0.0;
+    private readonly object _capturesLock = new();
+    private readonly Dictionary<string, MicrophoneCaptureState> _capturesByDeviceId = new();
     private bool _disposed;
+
+    private sealed class MicrophoneCaptureState
+    {
+        public required WasapiCapture Capture { get; init; }
+        public required string DeviceId { get; init; }
+        public DateTime LastEventRaisedAtUtc { get; set; } = DateTime.MinValue;
+        public double AccumulatedPeak { get; set; } = 0.0;
+        public required string DeviceFormatSignature { get; init; }
+    }
 
     // Debouncing for device change callbacks
     private Timer? _deviceChangeDebounceTimer;
@@ -44,7 +50,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     public event EventHandler? DefaultDeviceChanged;
     public event EventHandler<DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
     public event EventHandler<MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
-    public event EventHandler<DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
+    public event EventHandler<MicrophoneInputLevelChangedEventArgs>? MicrophoneInputLevelChanged;
     public event EventHandler<MicrophoneFormatChangedEventArgs>? MicrophoneFormatChanged;
 
     public AudioDeviceService(PolicyConfigService policyConfigService)
@@ -62,8 +68,8 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         // Fallback: poll for external volume/mute changes (Sound settings, other apps)
         StartExternalStatePolling();
 
-        // Track default microphone input level (real-time meter)
-        UpdateDefaultMicrophoneInputMeterSubscription();
+        // Track input levels for all microphones (real-time meters)
+        _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
     }
 
     private void StartExternalStatePolling()
@@ -180,6 +186,9 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
             if (hasFormatChanged)
             {
+                // Recreate captures when format changes
+                _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
+
                 // Post events to UI thread
                 if (_syncContext != null)
                 {
@@ -581,6 +590,9 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
                 UpdateMicrophoneVolumeNotificationSubscriptions();
             }).ConfigureAwait(false);
 
+            // Update meter subscriptions when devices added/removed
+            await UpdateAllMicrophoneMeterSubscriptionsAsync().ConfigureAwait(false);
+
             // Post event to UI thread
             if (_syncContext != null)
             {
@@ -642,9 +654,6 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
                 UpdateMicrophoneVolumeNotificationSubscriptions();
             }).ConfigureAwait(false);
 
-            // WasapiCapture creation/disposal can be blocking (20-100ms)
-            await UpdateDefaultMicrophoneInputMeterSubscriptionAsync().ConfigureAwait(false);
-
             // Post event to UI thread
             if (_syncContext != null)
             {
@@ -661,188 +670,130 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         }
     }
 
-    private void UpdateDefaultMicrophoneInputMeterSubscription()
-    {
-        lock (_defaultInputMeterLock)
-        {
-            var defaultDeviceId = GetDefaultDeviceId(Role.Console);
-
-            if (_defaultCaptureDeviceIdWithInputMeter == defaultDeviceId && _defaultCapture != null)
-            {
-                return;
-            }
-
-            if (_defaultCapture != null)
-            {
-                try
-                {
-                    _defaultCapture.DataAvailable -= OnDefaultCaptureDataAvailable;
-                    _defaultCapture.RecordingStopped -= OnDefaultCaptureRecordingStopped;
-                }
-                catch { }
-
-                try
-                {
-                    _defaultCapture.StopRecording();
-                }
-                catch { }
-
-                try
-                {
-                    _defaultCapture.Dispose();
-                }
-                catch { }
-
-                _defaultCapture = null;
-                _defaultCaptureDeviceIdWithInputMeter = null;
-            }
-
-            if (defaultDeviceId == null) return;
-
-            var device = GetDeviceById(defaultDeviceId);
-            if (device == null) return;
-
-            try
-            {
-                // Use 5ms buffer for faster meter response (default is 10ms)
-                var capture = new WasapiCapture(device, true, 5);
-                capture.DataAvailable += OnDefaultCaptureDataAvailable;
-                capture.RecordingStopped += OnDefaultCaptureRecordingStopped;
-                capture.StartRecording();
-
-                _defaultCapture = capture;
-                _defaultCaptureDeviceIdWithInputMeter = defaultDeviceId;
-            }
-            catch
-            {
-                _defaultCapture = null;
-                _defaultCaptureDeviceIdWithInputMeter = null;
-            }
-        }
-    }
-
-    private async Task UpdateDefaultMicrophoneInputMeterSubscriptionAsync()
+    private async Task UpdateAllMicrophoneMeterSubscriptionsAsync()
     {
         await Task.Run(() =>
         {
-            // WasapiCapture disposal and creation can be blocking (20-100ms)
-            // Move to background thread to prevent UI freezes
-            WasapiCapture? oldCapture = null;
-            WasapiCapture? newCapture = null;
-            string? newDeviceId = null;
-
-            lock (_defaultInputMeterLock)
+            // Get all active capture devices
+            List<MMDevice> activeDevices;
+            try
             {
-                var defaultDeviceId = GetDefaultDeviceId(Role.Console);
+                activeDevices = _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
+            }
+            catch { return; }
 
-                if (_defaultCaptureDeviceIdWithInputMeter == defaultDeviceId && _defaultCapture != null)
+            var activeIds = new HashSet<string>(activeDevices.Select(d => d.ID));
+
+            // Remove captures for devices that no longer exist
+            lock (_capturesLock)
+            {
+                var removedIds = _capturesByDeviceId.Keys.Where(id => !activeIds.Contains(id)).ToList();
+                foreach (var deviceId in removedIds)
                 {
-                    return;
-                }
-
-                // Capture old reference for disposal outside lock
-                oldCapture = _defaultCapture;
-                _defaultCapture = null;
-                _defaultCaptureDeviceIdWithInputMeter = null;
-
-                if (defaultDeviceId != null)
-                {
-                    var device = GetDeviceById(defaultDeviceId);
-                    if (device != null)
+                    if (_capturesByDeviceId.TryGetValue(deviceId, out var state))
                     {
-                        try
-                        {
-                            // Use 5ms buffer for faster meter response (default is 10ms)
-                            newCapture = new WasapiCapture(device, true, 5);
-                            newCapture.DataAvailable += OnDefaultCaptureDataAvailable;
-                            newCapture.RecordingStopped += OnDefaultCaptureRecordingStopped;
-                            newCapture.StartRecording();
-                            newDeviceId = defaultDeviceId;
-                        }
-                        catch
-                        {
-                            newCapture?.Dispose();
-                            newCapture = null;
-                        }
+                        DisposeCapture(state);
+                        _capturesByDeviceId.Remove(deviceId);
                     }
                 }
-
-                // Swap in new capture (minimal lock duration)
-                _defaultCapture = newCapture;
-                _defaultCaptureDeviceIdWithInputMeter = newDeviceId;
             }
 
-            // Dispose old capture outside lock (blocking operation)
-            if (oldCapture != null)
+            // Add/update captures for active devices
+            foreach (var device in activeDevices)
             {
-                try
-                {
-                    oldCapture.DataAvailable -= OnDefaultCaptureDataAvailable;
-                    oldCapture.RecordingStopped -= OnDefaultCaptureRecordingStopped;
-                }
-                catch { }
+                var formatSig = GetDeviceFormatSignature(device);
 
-                try
+                lock (_capturesLock)
                 {
-                    oldCapture.StopRecording();
-                }
-                catch { }
+                    // Check if capture exists with correct format
+                    if (_capturesByDeviceId.TryGetValue(device.ID, out var existingState))
+                    {
+                        if (existingState.DeviceFormatSignature == formatSig)
+                            continue;
 
-                try
-                {
-                    oldCapture.Dispose();
+                        // Format changed - recreate
+                        DisposeCapture(existingState);
+                        _capturesByDeviceId.Remove(device.ID);
+                    }
+
+                    // Create new capture
+                    try
+                    {
+                        var capture = new WasapiCapture(device, true, 5);
+                        capture.DataAvailable += OnCaptureDataAvailable;
+                        capture.RecordingStopped += OnCaptureRecordingStopped;
+                        capture.StartRecording();
+
+                        _capturesByDeviceId[device.ID] = new MicrophoneCaptureState
+                        {
+                            Capture = capture,
+                            DeviceId = device.ID,
+                            DeviceFormatSignature = formatSig
+                        };
+                    }
+                    catch { /* Device may not support capture */ }
                 }
-                catch { }
             }
         }).ConfigureAwait(false);
     }
 
-    private void OnDefaultCaptureRecordingStopped(object? sender, StoppedEventArgs e)
+    private static string GetDeviceFormatSignature(MMDevice device)
     {
-        // If recording stops unexpectedly, try to restart on the current default.
-        // (Guarded to avoid tight loops)
         try
         {
-            UpdateDefaultMicrophoneInputMeterSubscription();
+            var format = device.AudioClient?.MixFormat;
+            if (format == null) return "Unknown";
+            return $"{format.SampleRate}:{format.BitsPerSample}:{format.Channels}:{format.Encoding}";
         }
-        catch { }
+        catch { return "Unknown"; }
     }
 
-    private void OnDefaultCaptureDataAvailable(object? sender, WaveInEventArgs e)
+    private void DisposeCapture(MicrophoneCaptureState state)
     {
-        string? deviceId;
-        WasapiCapture? capture;
+        try { state.Capture.DataAvailable -= OnCaptureDataAvailable; } catch { }
+        try { state.Capture.RecordingStopped -= OnCaptureRecordingStopped; } catch { }
+        try { state.Capture.StopRecording(); } catch { }
+        try { state.Capture.Dispose(); } catch { }
+    }
 
-        lock (_defaultInputMeterLock)
+    private void OnCaptureRecordingStopped(object? sender, StoppedEventArgs e)
+    {
+        _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
+    }
+
+    private void OnCaptureDataAvailable(object? sender, WaveInEventArgs e)
+    {
+        if (!(sender is WasapiCapture capture)) return;
+
+        MicrophoneCaptureState? state = null;
+        lock (_capturesLock)
         {
-            deviceId = _defaultCaptureDeviceIdWithInputMeter;
-            capture = _defaultCapture;
+            state = _capturesByDeviceId.Values.FirstOrDefault(s => ReferenceEquals(s.Capture, capture));
         }
+        if (state == null) return;
 
-        if (deviceId == null || capture == null) return;
-
-        // Accumulate peak across buffers so we don't miss transients.
+        // Accumulate peak
         var bufferPeak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);
-        _accumulatedPeak = Math.Max(_accumulatedPeak, bufferPeak);
+        state.AccumulatedPeak = Math.Max(state.AccumulatedPeak, bufferPeak);
 
-        // Throttle UI-facing events to ~120Hz for fluid meter movement.
+        // Throttle to ~120Hz per device
         var nowUtc = DateTime.UtcNow;
-        if ((nowUtc - _lastInputMeterRaisedAtUtc).TotalMilliseconds < 8)
-        {
+        if ((nowUtc - state.LastEventRaisedAtUtc).TotalMilliseconds < 8)
             return;
-        }
 
-        var peak = _accumulatedPeak;
-        _accumulatedPeak = 0.0;
+        var peak = state.AccumulatedPeak;
+        state.AccumulatedPeak = 0.0;
+        state.LastEventRaisedAtUtc = nowUtc;
 
-        // Convert to dBFS and map using OBS LOG dB->deflection.
+        // Convert to dBFS and percent
         var peakDb = ObsMeterMath.ClampMeterDb(ObsMeterMath.MulToDb(peak));
         var percent = ObsMeterMath.DbToPercent(peakDb);
 
-        _lastInputMeterRaisedAtUtc = nowUtc;
-        DefaultMicrophoneInputLevelChanged?.Invoke(
-            this,
-            new DefaultMicrophoneInputLevelChangedEventArgs(deviceId, percent, peakDb));
+        var args = new MicrophoneInputLevelChangedEventArgs(state.DeviceId, percent, peakDb);
+        if (_syncContext != null)
+            _syncContext.Post(_ => MicrophoneInputLevelChanged?.Invoke(this, args), null);
+        else
+            MicrophoneInputLevelChanged?.Invoke(this, args);
     }
 
     private static double CalculatePeakAmplitude(byte[] buffer, int bytesRecorded, WaveFormat waveFormat)
@@ -1034,32 +985,13 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         catch { }
         _deviceChangeDebounceTimer = null;
 
-        lock (_defaultInputMeterLock)
+        lock (_capturesLock)
         {
-            if (_defaultCapture != null)
+            foreach (var state in _capturesByDeviceId.Values)
             {
-                try
-                {
-                    _defaultCapture.DataAvailable -= OnDefaultCaptureDataAvailable;
-                    _defaultCapture.RecordingStopped -= OnDefaultCaptureRecordingStopped;
-                }
-                catch { }
-
-                try
-                {
-                    _defaultCapture.StopRecording();
-                }
-                catch { }
-
-                try
-                {
-                    _defaultCapture.Dispose();
-                }
-                catch { }
-
-                _defaultCapture = null;
-                _defaultCaptureDeviceIdWithInputMeter = null;
+                DisposeCapture(state);
             }
+            _capturesByDeviceId.Clear();
         }
 
         lock (_volumeNotificationLock)
@@ -1114,9 +1046,9 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         public bool IsMuted { get; }
     }
 
-    public sealed class DefaultMicrophoneInputLevelChangedEventArgs : EventArgs
+    public sealed class MicrophoneInputLevelChangedEventArgs : EventArgs
     {
-        public DefaultMicrophoneInputLevelChangedEventArgs(string deviceId, double inputLevelPercent, double inputLevelDbFs)
+        public MicrophoneInputLevelChangedEventArgs(string deviceId, double inputLevelPercent, double inputLevelDbFs)
         {
             DeviceId = deviceId;
             InputLevelPercent = inputLevelPercent;

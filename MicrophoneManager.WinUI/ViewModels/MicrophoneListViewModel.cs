@@ -15,7 +15,6 @@ public partial class MicrophoneListViewModel : ObservableObject
     private bool _suppressInputMeterReset;
 
     private DispatcherQueueTimer? _peakHoldTimer;
-    private DispatcherQueueTimer? _meterTimer;
     private DateTime _peakHoldUntilUtc;
     private DateTime _lastPeakTickUtc;
 
@@ -28,7 +27,7 @@ public partial class MicrophoneListViewModel : ObservableObject
     private readonly EventHandler _defaultDeviceChangedHandler;
     private readonly EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs> _defaultVolumeChangedHandler;
     private readonly EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs> _microphoneVolumeChangedHandler;
-    private readonly EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs> _defaultInputLevelChangedHandler;
+    private readonly EventHandler<AudioDeviceService.MicrophoneInputLevelChangedEventArgs> _microphoneInputLevelChangedHandler;
     private readonly EventHandler<AudioDeviceService.MicrophoneFormatChangedEventArgs> _formatChangedHandler;
 
     private const int PeakHoldMilliseconds = 5000;
@@ -164,35 +163,43 @@ public partial class MicrophoneListViewModel : ObservableObject
                 vm.IsMuted = e.IsMuted;
             });
 
-        _defaultInputLevelChangedHandler = (s, e) =>
+        _microphoneInputLevelChangedHandler = (s, e) =>
             InvokeOnUiThread(() =>
             {
+                // Route to per-device VM
+                var vm = Microphones.FirstOrDefault(m => m.Id == e.DeviceId);
+                if (vm == null) return;
+
+                var shouldMute = vm.IsMuted;
+                var finalLevel = shouldMute ? 0 : e.InputLevelPercent;
+                vm.UpdateMeter(finalLevel);
+
+                // Also update list-level meters if this is the default
                 var defaultId = _audioService.GetDefaultDeviceId(NAudio.CoreAudioApi.Role.Console);
-                if (defaultId == null || e.DeviceId != defaultId) return;
-
-                // If the default mic is muted, present meters as silent.
-                if (IsMuted)
+                if (defaultId != null && e.DeviceId == defaultId)
                 {
-                    CurrentMicInputLevelPercent = 0;
-                    CurrentMicInputLevelDbFs = -96;
-                    PeakMicInputLevelPercent = 0;
-                    PeakMicInputLevelDbFs = -96;
-                    _peakHoldUntilUtc = DateTime.MinValue;
-                    _peakMicDbFs = -96;
-                    return;
-                }
+                    if (IsMuted)
+                    {
+                        CurrentMicInputLevelPercent = 0;
+                        CurrentMicInputLevelDbFs = -96;
+                        PeakMicInputLevelPercent = 0;
+                        PeakMicInputLevelDbFs = -96;
+                        _peakHoldUntilUtc = DateTime.MinValue;
+                        _peakMicDbFs = -96;
+                        return;
+                    }
 
-                _suppressInputMeterReset = true;
-                try
-                {
-                    CurrentMicInputLevelPercent = e.InputLevelPercent;
-                    CurrentMicInputLevelDbFs = e.InputLevelDbFs;
-
-                    UpdatePeakHold(e.InputLevelPercent, e.InputLevelDbFs);
-                }
-                finally
-                {
-                    _suppressInputMeterReset = false;
+                    _suppressInputMeterReset = true;
+                    try
+                    {
+                        CurrentMicInputLevelPercent = e.InputLevelPercent;
+                        CurrentMicInputLevelDbFs = e.InputLevelDbFs;
+                        UpdatePeakHold(e.InputLevelPercent, e.InputLevelDbFs);
+                    }
+                    finally
+                    {
+                        _suppressInputMeterReset = false;
+                    }
                 }
             });
 
@@ -211,7 +218,7 @@ public partial class MicrophoneListViewModel : ObservableObject
             _audioService.DefaultDeviceChanged += _defaultDeviceChangedHandler;
             _audioService.DefaultMicrophoneVolumeChanged += _defaultVolumeChangedHandler;
             _audioService.MicrophoneVolumeChanged += _microphoneVolumeChangedHandler;
-            _audioService.DefaultMicrophoneInputLevelChanged += _defaultInputLevelChangedHandler;
+            _audioService.MicrophoneInputLevelChanged += _microphoneInputLevelChangedHandler;
             _audioService.MicrophoneFormatChanged += _formatChangedHandler;
 
         // Initial load
@@ -236,6 +243,7 @@ public partial class MicrophoneListViewModel : ObservableObject
 
         if (enabled)
         {
+            // Only keep peak hold timer for UI decay animation
             if (_peakHoldTimer == null)
             {
                 _peakHoldTimer = _dispatcherQueue.CreateTimer();
@@ -243,19 +251,9 @@ public partial class MicrophoneListViewModel : ObservableObject
                 _peakHoldTimer.Tick += (s, e) => TickPeakHold();
             }
             _peakHoldTimer.Start();
-
-            if (_meterTimer == null)
-            {
-                _meterTimer = _dispatcherQueue.CreateTimer();
-                // Enumerating all capture devices is relatively expensive; 10Hz is plenty for UI.
-                _meterTimer.Interval = TimeSpan.FromMilliseconds(100);
-                _meterTimer.Tick += (s, e) => RefreshMeters();
-            }
-            _meterTimer.Start();
         }
         else
         {
-            try { _meterTimer?.Stop(); } catch { }
             try { _peakHoldTimer?.Stop(); } catch { }
         }
     }
@@ -389,28 +387,6 @@ public partial class MicrophoneListViewModel : ObservableObject
     public bool HasMicrophones => Microphones.Count > 0;
     public bool HasNoMicrophones => Microphones.Count == 0;
 
-    private void RefreshMeters()
-    {
-        if (!_meteringEnabled) return;
-
-        // Only refresh the meter values to avoid excessive UI/layout churn.
-        // Device name/default/mute/volume changes are handled by other subscriptions.
-        var devices = _audioService.GetMicrophones();
-        var inputById = devices.ToDictionary(d => d.Id, d => d.InputLevelPercent);
-        var muteById = devices.ToDictionary(d => d.Id, d => d.IsMuted);
-
-        foreach (var vm in Microphones)
-        {
-            if (inputById.TryGetValue(vm.Id, out var inputPercent))
-            {
-                // Use the service's current mute state (not just vm.IsMuted) to ensure we're in sync
-                var shouldMute = muteById.TryGetValue(vm.Id, out var isMuted) && isMuted;
-                var finalLevel = shouldMute ? 0 : inputPercent;
-                vm.UpdateMeter(finalLevel);
-            }
-        }
-    }
-
     public void Dispose()
     {
         if (_disposed) return;
@@ -422,7 +398,7 @@ public partial class MicrophoneListViewModel : ObservableObject
         try { _audioService.DefaultDeviceChanged -= _defaultDeviceChangedHandler; } catch { }
         try { _audioService.DefaultMicrophoneVolumeChanged -= _defaultVolumeChangedHandler; } catch { }
         try { _audioService.MicrophoneVolumeChanged -= _microphoneVolumeChangedHandler; } catch { }
-        try { _audioService.DefaultMicrophoneInputLevelChanged -= _defaultInputLevelChangedHandler; } catch { }
+        try { _audioService.MicrophoneInputLevelChanged -= _microphoneInputLevelChangedHandler; } catch { }
         try { _audioService.MicrophoneFormatChanged -= _formatChangedHandler; } catch { }
     }
 }

@@ -15,7 +15,7 @@ public class FakeAudioDeviceService : IAudioDeviceService
     public event EventHandler? DefaultDeviceChanged;
     public event EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
     public event EventHandler<AudioDeviceService.MicrophoneVolumeChangedEventArgs>? MicrophoneVolumeChanged;
-    public event EventHandler<AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs>? DefaultMicrophoneInputLevelChanged;
+    public event EventHandler<AudioDeviceService.MicrophoneInputLevelChangedEventArgs>? MicrophoneInputLevelChanged;
     public event EventHandler<AudioDeviceService.MicrophoneFormatChangedEventArgs>? MicrophoneFormatChanged;
 
     public void AddOrUpdateMicrophone(FakeMicrophone microphone)
@@ -158,9 +158,9 @@ public class FakeAudioDeviceService : IAudioDeviceService
 
     public void RaiseInputLevelChanged(string deviceId, double inputPercent, double inputDbFs)
     {
-        DefaultMicrophoneInputLevelChanged?.Invoke(
+        MicrophoneInputLevelChanged?.Invoke(
             this,
-            new AudioDeviceService.DefaultMicrophoneInputLevelChangedEventArgs(deviceId, inputPercent, inputDbFs));
+            new AudioDeviceService.MicrophoneInputLevelChangedEventArgs(deviceId, inputPercent, inputDbFs));
     }
 
     public void RaiseFormatChanged(string deviceId, string formatTag)
