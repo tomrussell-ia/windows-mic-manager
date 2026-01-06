@@ -144,37 +144,103 @@ public partial class MicrophoneEntryViewModel : ObservableObject
         }
     }
 
+    [ObservableProperty]
+    private bool _isChangingDevice;
+
     [RelayCommand]
-    private void SetDefault()
+    private async Task SetDefaultAsync()
     {
-        if (!_audioService.SetMicrophoneForRole(Id, NAudio.CoreAudioApi.Role.Console))
+        if (IsChangingDevice) return;
+
+        try
         {
+            IsChangingDevice = true;
+            var success = await _audioService.SetMicrophoneForRoleAsync(Id, NAudio.CoreAudioApi.Role.Console, CancellationToken.None);
+            if (!success)
+            {
+                _onError?.Invoke("Failed to set default device");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SetDefaultAsync failed: {ex}");
             _onError?.Invoke("Failed to set default device");
+        }
+        finally
+        {
+            IsChangingDevice = false;
         }
     }
 
     [RelayCommand]
-    private void SetDefaultCommunication()
+    private async Task SetDefaultCommunicationAsync()
     {
-        if (!_audioService.SetMicrophoneForRole(Id, NAudio.CoreAudioApi.Role.Communications))
+        if (IsChangingDevice) return;
+
+        try
         {
+            IsChangingDevice = true;
+            var success = await _audioService.SetMicrophoneForRoleAsync(Id, NAudio.CoreAudioApi.Role.Communications, CancellationToken.None);
+            if (!success)
+            {
+                _onError?.Invoke("Failed to set communication device");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SetDefaultCommunicationAsync failed: {ex}");
             _onError?.Invoke("Failed to set communication device");
         }
-    }
-
-    [RelayCommand]
-    private void SetBoth()
-    {
-        if (!_audioService.SetDefaultMicrophone(Id))
+        finally
         {
-            _onError?.Invoke("Failed to set default device");
+            IsChangingDevice = false;
         }
     }
 
     [RelayCommand]
-    private void ToggleMute()
+    private async Task SetBothAsync()
     {
-        IsMuted = _audioService.ToggleMute(Id);
+        if (IsChangingDevice) return;
+
+        try
+        {
+            IsChangingDevice = true;
+            var success = await _audioService.SetDefaultMicrophoneAsync(Id, CancellationToken.None);
+            if (!success)
+            {
+                _onError?.Invoke("Failed to set default device");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SetBothAsync failed: {ex}");
+            _onError?.Invoke("Failed to set default device");
+        }
+        finally
+        {
+            IsChangingDevice = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleMuteAsync()
+    {
+        if (IsChangingDevice) return;
+
+        try
+        {
+            IsChangingDevice = true;
+            IsMuted = await _audioService.ToggleMuteAsync(Id, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ToggleMuteAsync failed: {ex}");
+            _onError?.Invoke("Failed to toggle mute");
+        }
+        finally
+        {
+            IsChangingDevice = false;
+        }
     }
 
     partial void OnVolumePercentChanged(double value)

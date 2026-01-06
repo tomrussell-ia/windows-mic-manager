@@ -324,25 +324,33 @@ public partial class MicrophoneListViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleMute()
+    private async Task ToggleMuteAsync()
     {
-        IsMuted = _audioService.ToggleDefaultMicrophoneMute();
-
-        if (IsMuted)
+        try
         {
-            CurrentMicInputLevelPercent = 0;
-            CurrentMicInputLevelDbFs = -96;
-            PeakMicInputLevelPercent = 0;
-            PeakMicInputLevelDbFs = -96;
-            _peakHoldUntilUtc = DateTime.MinValue;
-            _peakMicDbFs = -96;
-        }
+            IsMuted = await _audioService.ToggleDefaultMicrophoneMuteAsync(CancellationToken.None);
 
-        // TODO: Update the TrayViewModel as well via App static reference
-        // if (App.TrayViewModel != null)
-        // {
-        //     App.TrayViewModel.IsMuted = IsMuted;
-        // }
+            if (IsMuted)
+            {
+                CurrentMicInputLevelPercent = 0;
+                CurrentMicInputLevelDbFs = -96;
+                PeakMicInputLevelPercent = 0;
+                PeakMicInputLevelDbFs = -96;
+                _peakHoldUntilUtc = DateTime.MinValue;
+                _peakMicDbFs = -96;
+            }
+
+            // TODO: Update the TrayViewModel as well via App static reference
+            // if (App.TrayViewModel != null)
+            // {
+            //     App.TrayViewModel.IsMuted = IsMuted;
+            // }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ToggleMuteAsync failed: {ex}");
+            ShowError("Failed to toggle mute");
+        }
     }
 
     private void UpdatePeakHold(double currentPercent, double currentDbFs)

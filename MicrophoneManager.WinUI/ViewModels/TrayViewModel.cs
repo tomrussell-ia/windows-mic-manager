@@ -86,10 +86,17 @@ public partial class TrayViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleMute()
+    private async Task ToggleMuteAsync()
     {
-        IsMuted = _audioService.ToggleDefaultMicrophoneMute();
-        UpdateState();
+        try
+        {
+            IsMuted = await _audioService.ToggleDefaultMicrophoneMuteAsync(CancellationToken.None);
+            UpdateState();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ToggleMuteAsync failed: {ex}");
+        }
     }
 
     [RelayCommand]

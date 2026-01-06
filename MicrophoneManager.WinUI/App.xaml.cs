@@ -76,6 +76,13 @@ public partial class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         // Register services
+        // ComThreadService provides STA thread for COM operations
+        services.AddSingleton<MicrophoneManager.WinUI.Services.ComThreadService>();
+
+        // PolicyConfigService requires ComThreadService
+        services.AddSingleton<MicrophoneManager.WinUI.Services.PolicyConfigService>();
+
+        // AudioDeviceService requires PolicyConfigService
         services.AddSingleton<MicrophoneManager.WinUI.Services.IAudioDeviceService, MicrophoneManager.WinUI.Services.AudioDeviceService>();
 
         // Register ViewModels

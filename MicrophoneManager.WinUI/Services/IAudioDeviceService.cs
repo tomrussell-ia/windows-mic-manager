@@ -23,4 +23,12 @@ public interface IAudioDeviceService : IDisposable
     bool IsMuted(string deviceId);
     bool ToggleDefaultMicrophoneMute();
     bool IsDefaultMicrophoneMuted();
+
+    // Async methods to prevent UI thread blocking
+    Task<List<MicrophoneDevice>> GetMicrophonesAsync(CancellationToken cancellationToken = default);
+    Task<string?> GetDefaultDeviceIdAsync(Role role, CancellationToken cancellationToken = default);
+    Task<bool> SetDefaultMicrophoneAsync(string deviceId, CancellationToken cancellationToken = default);
+    Task<bool> SetMicrophoneForRoleAsync(string deviceId, Role role, CancellationToken cancellationToken = default);
+    Task<bool> ToggleMuteAsync(string deviceId, CancellationToken cancellationToken = default);
+    Task<bool> ToggleDefaultMicrophoneMuteAsync(CancellationToken cancellationToken = default);
 }

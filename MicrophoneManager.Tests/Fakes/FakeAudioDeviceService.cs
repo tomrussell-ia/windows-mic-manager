@@ -170,6 +170,37 @@ public class FakeAudioDeviceService : IAudioDeviceService
             new AudioDeviceService.MicrophoneFormatChangedEventArgs(deviceId, formatTag));
     }
 
+    // Async methods - in tests, these just wrap synchronous versions
+    public Task<List<MicrophoneDevice>> GetMicrophonesAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(GetMicrophones());
+    }
+
+    public Task<string?> GetDefaultDeviceIdAsync(Role role, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(GetDefaultDeviceId(role));
+    }
+
+    public Task<bool> SetDefaultMicrophoneAsync(string deviceId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(SetDefaultMicrophone(deviceId));
+    }
+
+    public Task<bool> SetMicrophoneForRoleAsync(string deviceId, Role role, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(SetMicrophoneForRole(deviceId, role));
+    }
+
+    public Task<bool> ToggleMuteAsync(string deviceId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ToggleMute(deviceId));
+    }
+
+    public Task<bool> ToggleDefaultMicrophoneMuteAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ToggleDefaultMicrophoneMute());
+    }
+
     public void Dispose()
     {
     }

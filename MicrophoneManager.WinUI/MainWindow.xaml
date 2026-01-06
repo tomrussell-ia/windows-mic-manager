@@ -12,8 +12,8 @@
                         ToolTipText="Microphone Manager"
                         LeftClickCommand="{x:Bind ShowFlyoutCommand}">
             <tb:TaskbarIcon.IconSource>
-                <!-- Tray icon: `Assets/wave-sound.png` (see `Assets/ATTRIBUTION.txt`). -->
-                <BitmapImage UriSource="ms-appx:///Assets/wave-sound.png" DecodePixelWidth="32" />
+                <!-- Tray icon: `Assets/wave-sound.ico` (converted from PNG, see `Assets/ATTRIBUTION.txt`). -->
+                <BitmapImage UriSource="ms-appx:///Assets/wave-sound.ico" />
             </tb:TaskbarIcon.IconSource>
 
             <tb:TaskbarIcon.ContextFlyout>
