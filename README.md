@@ -12,6 +12,8 @@ A Windows 10/11 system tray application for quick microphone selection, similar 
 - **Mute/unmute button** - Quick toggle in flyout, tray icon reflects muted state
 - **Real-time updates** - Automatically detects device changes (plug/unplug)
 
+![alt text](docs/assets/image.png)
+
 ## Requirements
 
 - Windows 10 version 1809 or later (Windows 11 recommended)
