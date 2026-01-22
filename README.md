@@ -106,6 +106,14 @@ This project was developed with assistance from AI coding agents:
 - [GitHub Copilot](https://github.com/features/copilot) - Code completion and suggestions
 - [Claude](https://claude.ai) (Anthropic) - Architecture design and implementation
 
+### Specification Management
+
+Feature development follows a specification-driven workflow using [OpenSpec](https://github.com/InfraredAces/openspec):
+- All significant features start with a proposal in `openspec/changes/`
+- Requirements and scenarios are documented before implementation
+- Changes are validated and approved before coding begins
+- Completed changes are archived with their specifications
+
 All code has been reviewed, tested, and validated by human developers. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to this project.
 
 ## License
