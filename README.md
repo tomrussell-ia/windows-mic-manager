@@ -2,6 +2,8 @@
 
 A Windows 10/11 system tray application for quick microphone selection, similar to the native speaker quick-select flyout.
 
+[![Built with AI Assistance](https://img.shields.io/badge/Built%20with-AI%20Assistance-blue)](https://github.com/features/copilot)
+
 ## Features
 
 - **System tray icon** - Microphone indicator that shows muted state
@@ -97,6 +99,14 @@ MicrophoneManager.WinUI/
 MicrophoneManager.Tests/
 └── [xUnit test suite]
 ```
+
+## Development
+
+This project was developed with assistance from AI coding agents:
+- [GitHub Copilot](https://github.com/features/copilot) - Code completion and suggestions
+- [Claude](https://claude.ai) (Anthropic) - Architecture design and implementation
+
+All code has been reviewed, tested, and validated by human developers. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to this project.
 
 ## License
 
