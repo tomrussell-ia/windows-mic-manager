@@ -5,12 +5,13 @@ using MicrophoneManager.WinUI.Services;
 
 namespace MicrophoneManager.WinUI.ViewModels;
 
-public partial class TrayViewModel : ObservableObject
+public partial class TrayViewModel : ObservableObject, IDisposable
 {
     private readonly IAudioDeviceService _audioService;
     private readonly Action<bool> _updateIconCallback;
     private readonly DispatcherQueue? _dispatcherQueue;
     private readonly EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs> _defaultVolumeChangedHandler;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _tooltipText = "Microphone Manager";
@@ -111,5 +112,15 @@ public partial class TrayViewModel : ObservableObject
     {
         // WinUI 3 - use Application.Current.Exit()
         Microsoft.UI.Xaml.Application.Current.Exit();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        try { _audioService.DefaultDeviceChanged -= OnDefaultDeviceChanged; } catch { }
+        try { _audioService.DevicesChanged -= OnDevicesChanged; } catch { }
+        try { _audioService.DefaultMicrophoneVolumeChanged -= _defaultVolumeChangedHandler; } catch { }
     }
 }

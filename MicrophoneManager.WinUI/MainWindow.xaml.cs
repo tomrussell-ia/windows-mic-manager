@@ -14,6 +14,7 @@ namespace MicrophoneManager.WinUI;
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private Views.MicrophoneWindow? _flyoutWindow;
+    private bool _isDisposed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -87,6 +88,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ExitApp()
     {
+        if (_isDisposed) return;
+        _isDisposed = true;
+
         // Close flyout window
         try
         {
@@ -94,29 +98,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch { }
 
-        // Dispose tray icon first (important to remove from system tray)
-        try
-        {
-            TrayIcon?.Dispose();
-        }
-        catch { }
-
-        // Dispose audio service (stops background threads and releases COM objects)
-        try
-        {
-            if (App.AudioService is IDisposable disposableService)
-            {
-                disposableService.Dispose();
-            }
-        }
-        catch { }
-
-        // Dispose DI host
-        try
-        {
-            App.Host?.Dispose();
-        }
-        catch { }
+        DisposeServices();
 
         // Close this window
         try
@@ -156,14 +138,36 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
-        // Dispose tray icon
+        if (_isDisposed) return;
+        _isDisposed = true;
+
+        DisposeServices();
+    }
+
+    /// <summary>
+    /// Disposes tray icon, ViewModels, audio service, and DI host.
+    /// Guarded by _isDisposed to ensure this runs at most once.
+    /// </summary>
+    private void DisposeServices()
+    {
+        // Dispose tray icon first (important to remove from system tray)
         try
         {
             TrayIcon?.Dispose();
         }
         catch { }
 
-        // Dispose audio service
+        // Dispose TrayViewModel (unsubscribes service events)
+        try
+        {
+            if (App.TrayViewModel is IDisposable disposableViewModel)
+            {
+                disposableViewModel.Dispose();
+            }
+        }
+        catch { }
+
+        // Dispose audio service (stops background threads and releases COM objects)
         try
         {
             if (App.AudioService is IDisposable disposableService)

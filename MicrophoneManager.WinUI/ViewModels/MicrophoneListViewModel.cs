@@ -7,7 +7,7 @@ using MicrophoneManager.WinUI.Services;
 
 namespace MicrophoneManager.WinUI.ViewModels;
 
-public partial class MicrophoneListViewModel : ObservableObject
+public partial class MicrophoneListViewModel : ObservableObject, IDisposable
 {
     private readonly IAudioDeviceService _audioService;
     private readonly DispatcherQueue? _dispatcherQueue;
@@ -213,13 +213,13 @@ public partial class MicrophoneListViewModel : ObservableObject
                 }
             });
 
-            // Subscribe to changes
-            _audioService.DevicesChanged += _devicesChangedHandler;
-            _audioService.DefaultDeviceChanged += _defaultDeviceChangedHandler;
-            _audioService.DefaultMicrophoneVolumeChanged += _defaultVolumeChangedHandler;
-            _audioService.MicrophoneVolumeChanged += _microphoneVolumeChangedHandler;
-            _audioService.MicrophoneInputLevelChanged += _microphoneInputLevelChangedHandler;
-            _audioService.MicrophoneFormatChanged += _formatChangedHandler;
+        // Subscribe to changes
+        _audioService.DevicesChanged += _devicesChangedHandler;
+        _audioService.DefaultDeviceChanged += _defaultDeviceChangedHandler;
+        _audioService.DefaultMicrophoneVolumeChanged += _defaultVolumeChangedHandler;
+        _audioService.MicrophoneVolumeChanged += _microphoneVolumeChangedHandler;
+        _audioService.MicrophoneInputLevelChanged += _microphoneInputLevelChangedHandler;
+        _audioService.MicrophoneFormatChanged += _formatChangedHandler;
 
         // Initial load
         RefreshDevices();
