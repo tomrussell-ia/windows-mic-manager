@@ -24,7 +24,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
     private readonly object _capturesLock = new();
     private readonly Dictionary<string, MicrophoneCaptureState> _capturesByDeviceId = new();
-    private bool _disposed;
+    private volatile bool _disposed;
 
     private sealed class MicrophoneCaptureState
     {

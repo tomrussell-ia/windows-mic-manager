@@ -14,7 +14,7 @@ public class ComThreadService : IDisposable
     private readonly Thread _comThread;
     private readonly BlockingCollection<WorkItem> _workQueue;
     private readonly CancellationTokenSource _shutdownToken;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public ComThreadService()
     {
@@ -35,10 +35,7 @@ public class ComThreadService : IDisposable
     /// </summary>
     public Task InvokeAsync(Action action)
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(ComThreadService));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         var tcs = new TaskCompletionSource<bool>();
         var workItem = new WorkItem(() =>
@@ -54,7 +51,16 @@ public class ComThreadService : IDisposable
             }
         });
 
-        _workQueue.Add(workItem);
+        try
+        {
+            _workQueue.Add(workItem);
+        }
+        catch (InvalidOperationException)
+        {
+            // WorkQueue has been marked as complete for adding (disposal in progress)
+            throw new ObjectDisposedException(nameof(ComThreadService));
+        }
+
         return tcs.Task;
     }
 
@@ -63,10 +69,7 @@ public class ComThreadService : IDisposable
     /// </summary>
     public Task<T> InvokeAsync<T>(Func<T> func)
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(ComThreadService));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         var tcs = new TaskCompletionSource<T>();
         var workItem = new WorkItem(() =>
@@ -82,7 +85,16 @@ public class ComThreadService : IDisposable
             }
         });
 
-        _workQueue.Add(workItem);
+        try
+        {
+            _workQueue.Add(workItem);
+        }
+        catch (InvalidOperationException)
+        {
+            // WorkQueue has been marked as complete for adding (disposal in progress)
+            throw new ObjectDisposedException(nameof(ComThreadService));
+        }
+
         return tcs.Task;
     }
 

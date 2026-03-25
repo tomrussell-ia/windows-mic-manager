@@ -14,6 +14,7 @@ namespace MicrophoneManager.WinUI;
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private Views.MicrophoneWindow? _flyoutWindow;
+    private bool _isDisposed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -87,6 +88,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ExitApp()
     {
+        if (_isDisposed) return;
+        _isDisposed = true;
+
         // Close flyout window
         try
         {
@@ -98,6 +102,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             TrayIcon?.Dispose();
+        }
+        catch { }
+
+        // Dispose TrayViewModel (unsubscribes service events)
+        try
+        {
+            if (App.TrayViewModel is IDisposable disposableViewModel)
+            {
+                disposableViewModel.Dispose();
+            }
         }
         catch { }
 
@@ -156,10 +170,23 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        if (_isDisposed) return;
+        _isDisposed = true;
+
         // Dispose tray icon
         try
         {
             TrayIcon?.Dispose();
+        }
+        catch { }
+
+        // Dispose TrayViewModel (unsubscribes service events)
+        try
+        {
+            if (App.TrayViewModel is IDisposable disposableViewModel)
+            {
+                disposableViewModel.Dispose();
+            }
         }
         catch { }
 

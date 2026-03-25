@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Runtime.InteropServices;
 
 namespace MicrophoneManager.WinUI.Services;
 
@@ -16,6 +17,9 @@ public static class IconGenerator
     // Segoe MDL2 Assets glyph codes
     private const string MicrophoneGlyph = "\uE720";      // Microphone
     private const string MicrophoneMutedGlyph = "\uE74F"; // Microphone with slash
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     public static Icon CreateMicrophoneIcon(bool isMuted)
     {
@@ -44,8 +48,19 @@ public static class IconGenerator
         var rect = new RectangleF(0, 0, IconSize, IconSize);
         graphics.DrawString(glyph, font, brush, rect, format);
 
-        // Convert bitmap to icon
+        // Convert bitmap to icon.
+        // Icon.FromHandle() does NOT take ownership of the native HICON handle.
+        // Clone the icon to create a fully managed copy, then destroy the native handle
+        // to prevent GDI handle leaks.
         IntPtr hIcon = bitmap.GetHicon();
-        return Icon.FromHandle(hIcon);
+        try
+        {
+            using var tempIcon = Icon.FromHandle(hIcon);
+            return (Icon)tempIcon.Clone();
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
     }
 }

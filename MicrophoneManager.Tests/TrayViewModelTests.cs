@@ -275,4 +275,71 @@ public class TrayViewModelTests
     }
 
     #endregion
+
+    #region Dispose Pattern
+
+    [Fact]
+    public void Dispose_DoesNotThrow()
+    {
+        // Arrange
+        var fakeService = new FakeAudioDeviceService();
+        fakeService.AddOrUpdateMicrophone(new FakeAudioDeviceService.FakeMicrophone("mic-1", "Desk Mic"));
+        fakeService.DefaultConsoleId = "mic-1";
+
+        var viewModel = CreateViewModel(fakeService);
+
+        // Act & Assert - should not throw
+        var exception = Record.Exception(() => viewModel.Dispose());
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Dispose_UnsubscribesFromEvents()
+    {
+        // Arrange
+        var fakeService = new FakeAudioDeviceService();
+        fakeService.AddOrUpdateMicrophone(new FakeAudioDeviceService.FakeMicrophone("mic-1", "Desk Mic"));
+        fakeService.DefaultConsoleId = "mic-1";
+
+        var viewModel = CreateViewModel(fakeService);
+        Assert.Equal("Desk Mic", viewModel.TooltipText);
+
+        // Act - dispose, then change default device
+        viewModel.Dispose();
+        fakeService.DefaultConsoleId = null;
+        fakeService.RemoveMicrophone("mic-1");
+
+        // Raising events after dispose should not update the viewmodel and should not crash
+        var exception = Record.Exception(() =>
+        {
+            fakeService.RaiseDevicesChanged();
+            fakeService.RaiseDefaultDeviceChanged();
+            fakeService.RaiseDefaultVolumeChanged("mic-1", 0.5f, true);
+        });
+
+        Assert.Null(exception);
+        // Tooltip should remain unchanged since events are unsubscribed
+        Assert.Equal("Desk Mic", viewModel.TooltipText);
+    }
+
+    [Fact]
+    public void DoubleDispose_DoesNotThrow()
+    {
+        // Arrange
+        var fakeService = new FakeAudioDeviceService();
+        fakeService.AddOrUpdateMicrophone(new FakeAudioDeviceService.FakeMicrophone("mic-1", "Desk Mic"));
+        fakeService.DefaultConsoleId = "mic-1";
+
+        var viewModel = CreateViewModel(fakeService);
+
+        // Act & Assert - double dispose should not throw
+        var exception = Record.Exception(() =>
+        {
+            viewModel.Dispose();
+            viewModel.Dispose();
+        });
+        Assert.Null(exception);
+    }
+
+    #endregion
 }
