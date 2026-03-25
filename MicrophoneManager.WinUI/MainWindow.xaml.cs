@@ -98,39 +98,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch { }
 
-        // Dispose tray icon first (important to remove from system tray)
-        try
-        {
-            TrayIcon?.Dispose();
-        }
-        catch { }
-
-        // Dispose TrayViewModel (unsubscribes service events)
-        try
-        {
-            if (App.TrayViewModel is IDisposable disposableViewModel)
-            {
-                disposableViewModel.Dispose();
-            }
-        }
-        catch { }
-
-        // Dispose audio service (stops background threads and releases COM objects)
-        try
-        {
-            if (App.AudioService is IDisposable disposableService)
-            {
-                disposableService.Dispose();
-            }
-        }
-        catch { }
-
-        // Dispose DI host
-        try
-        {
-            App.Host?.Dispose();
-        }
-        catch { }
+        DisposeServices();
 
         // Close this window
         try
@@ -173,7 +141,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         if (_isDisposed) return;
         _isDisposed = true;
 
-        // Dispose tray icon
+        DisposeServices();
+    }
+
+    /// <summary>
+    /// Disposes tray icon, ViewModels, audio service, and DI host.
+    /// Guarded by _isDisposed to ensure this runs at most once.
+    /// </summary>
+    private void DisposeServices()
+    {
+        // Dispose tray icon first (important to remove from system tray)
         try
         {
             TrayIcon?.Dispose();
@@ -190,7 +167,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch { }
 
-        // Dispose audio service
+        // Dispose audio service (stops background threads and releases COM objects)
         try
         {
             if (App.AudioService is IDisposable disposableService)
