@@ -36,6 +36,12 @@ public static class Program
 
         try
         {
+            // Required for single-file publish: Windows App SDK needs to locate
+            // XAML resources in the temp extraction directory.
+            Environment.SetEnvironmentVariable(
+                "MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY",
+                AppContext.BaseDirectory);
+
             Log("=== Application starting ===");
             Log($"Current directory: {Environment.CurrentDirectory}");
             Log($"Base directory: {AppContext.BaseDirectory}");
