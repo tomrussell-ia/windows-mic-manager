@@ -2,7 +2,7 @@
 param(
     [string]$DestinationDir = 'D:\utils\MicrophoneManager',
     [string]$Project = 'MicrophoneManager.WinUI\MicrophoneManager.WinUI.csproj',
-    [string]$PublishProfile = 'win-x64-folder'
+    [string]$PublishProfile = 'win-x64-singlefile'
 )
 
 Set-StrictMode -Version Latest
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath $PSScriptRoot\..).Path
 Set-Location -LiteralPath $repoRoot
 
-Write-Host "Publishing folder-based Release..." -ForegroundColor Cyan
+Write-Host "Publishing single-file Release..." -ForegroundColor Cyan
 dotnet publish (Join-Path $repoRoot $Project) -c Release -p:PublishProfile=$PublishProfile -v minimal
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
