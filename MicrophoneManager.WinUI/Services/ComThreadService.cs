@@ -24,7 +24,7 @@ public class ComThreadService : IDisposable
         _comThread = new Thread(ComThreadProc)
         {
             Name = "COM Worker Thread",
-            IsBackground = false
+            IsBackground = true
         };
         _comThread.SetApartmentState(ApartmentState.STA);
         _comThread.Start();
@@ -122,14 +122,14 @@ public class ComThreadService : IDisposable
         _shutdownToken.Cancel();
         _workQueue.CompleteAdding();
 
-        // Wait for the thread to finish (max 1 second)
-        if (!_comThread.Join(1000))
+        // Only dispose shared resources if the thread exits cleanly.
+        // If Join times out, the thread may still be iterating _workQueue;
+        // disposing BlockingCollection while another thread iterates it is undefined behavior.
+        if (_comThread.Join(5000))
         {
-            System.Diagnostics.Debug.WriteLine("ComThreadService: Thread did not exit within timeout");
+            _workQueue.Dispose();
+            _shutdownToken.Dispose();
         }
-
-        _workQueue.Dispose();
-        _shutdownToken.Dispose();
     }
 
     private class WorkItem
