@@ -131,7 +131,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
                 if (endpoint == null) continue;
                 volume = endpoint.MasterVolumeLevelScalar;
                 muted = endpoint.Mute;
-                formatTag = GetDeviceFormat(device);
+                formatTag = GetDeviceFormatInfo(device).Tag;
             }
             catch
             {
@@ -262,6 +262,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
             foreach (var device in _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
             {
+                var formatInfo = GetDeviceFormatInfo(device);
                 var mic = new MicrophoneDevice
                 {
                     Id = device.ID,
@@ -270,7 +271,10 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
                     IsDefaultCommunication = device.ID == defaultCommId,
                     IsMuted = GetDeviceMuteState(device),
                     VolumeLevel = GetDeviceVolume(device),
-                    FormatTag = GetDeviceFormat(device),
+                    FormatTag = formatInfo.Tag,
+                    SampleRateHz = formatInfo.SampleRateHz,
+                    BitsPerSample = formatInfo.BitsPerSample,
+                    FidelityTier = ComputeFidelityTier(formatInfo.SampleRateHz, formatInfo.BitsPerSample),
                     InputLevelPercent = GetDeviceInputLevel(device)
                 };
                 devices.Add(mic);
@@ -506,12 +510,12 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         }
     }
 
-    private static string GetDeviceFormat(MMDevice device)
+    private static (string Tag, int SampleRateHz, int BitsPerSample) GetDeviceFormatInfo(MMDevice device)
     {
         try
         {
             var format = device.AudioClient?.MixFormat;
-            if (format == null) return "Unknown format";
+            if (format == null) return ("Unknown format", 0, 0);
 
             var sampleRateKhz = format.SampleRate / 1000.0;
             var bits = format.BitsPerSample;
@@ -524,12 +528,23 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
                 _ => $"{channels}-ch"
             };
 
-            return $"{sampleRateKhz:0.#} kHz {bits}-bit {channelLabel}";
+            return ($"{sampleRateKhz:0.#} kHz {bits}-bit {channelLabel}", format.SampleRate, bits);
         }
         catch
         {
-            return "Unknown format";
+            return ("Unknown format", 0, 0);
         }
+    }
+
+    private static Models.FidelityTier ComputeFidelityTier(int sampleRateHz, int bitsPerSample)
+    {
+        if (sampleRateHz >= 88200 || (sampleRateHz >= 44100 && bitsPerSample >= 24))
+            return Models.FidelityTier.Studio;
+        if (sampleRateHz >= 44100)
+            return Models.FidelityTier.High;
+        if (sampleRateHz >= 22050 && bitsPerSample >= 16)
+            return Models.FidelityTier.Standard;
+        return Models.FidelityTier.Reduced;
     }
 
     private static double GetDeviceInputLevel(MMDevice device)

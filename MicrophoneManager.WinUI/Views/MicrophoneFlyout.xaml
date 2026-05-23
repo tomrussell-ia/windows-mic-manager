@@ -102,6 +102,7 @@
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/> <!-- Header -->
+                                    <RowDefinition Height="Auto"/> <!-- Comms Warning -->
                                     <RowDefinition Height="Auto"/> <!-- Meter -->
                                     <RowDefinition Height="Auto"/> <!-- Volume -->
                                 </Grid.RowDefinitions>
@@ -126,9 +127,21 @@
                                                   FontWeight="SemiBold"
                                                   Foreground="White"
                                                   TextWrapping="NoWrap"/>
-                                        <TextBlock Text="{x:Bind FormatTag, Mode=OneWay}"
-                                                  FontSize="11"
-                                                  Foreground="#AAAAAA"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1,0,0">
+                                            <TextBlock Text="{x:Bind FormatTag, Mode=OneWay}"
+                                                      FontSize="11"
+                                                      Foreground="#AAAAAA"
+                                                      VerticalAlignment="Center"/>
+                                            <Border CornerRadius="3" Padding="4,1" VerticalAlignment="Center">
+                                                <Border.Background>
+                                                    <SolidColorBrush Color="{x:Bind FidelityColor, Mode=OneWay}"/>
+                                                </Border.Background>
+                                                <TextBlock Text="{x:Bind FidelityLabel, Mode=OneWay}"
+                                                          FontSize="9"
+                                                          FontWeight="SemiBold"
+                                                          Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <!-- Default/Comms action buttons -->
@@ -152,8 +165,30 @@
                                     </StackPanel>
                                 </Grid>
 
+                                <!-- Communications Warning Strip -->
+                                <Border Grid.Row="1"
+                                        Background="#2B1F00"
+                                        BorderBrush="#E6C84A"
+                                        BorderThickness="0,0,0,1"
+                                        CornerRadius="3"
+                                        Padding="6,3"
+                                        Margin="0,4,0,0"
+                                        Visibility="{x:Bind IsDefaultCommunication, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                                        ToolTipService.ToolTip="This device is the Windows communications default. Apps like Teams and Zoom will apply noise suppression, echo cancellation, and automatic gain control to this mic.">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <FontIcon Glyph="&#xE7BA;"
+                                                 FontSize="10"
+                                                 Foreground="#E6C84A"
+                                                 VerticalAlignment="Center"/>
+                                        <TextBlock Text="Communications processing active"
+                                                  FontSize="10"
+                                                  Foreground="#E6C84A"
+                                                  VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- Meter: Input Level with Peak Indicator -->
-                                <Grid Grid.Row="1" Margin="0,4,0,0">
+                                <Grid Grid.Row="2" Margin="0,4,0,0">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/> <!-- Label -->
                                         <RowDefinition Height="Auto"/> <!-- Meter -->
@@ -237,7 +272,7 @@
                                 </Grid>
 
                                 <!-- Volume: Mute button + Slider -->
-                                <Grid Grid.Row="2" Margin="0,4,0,0">
+                                <Grid Grid.Row="3" Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
