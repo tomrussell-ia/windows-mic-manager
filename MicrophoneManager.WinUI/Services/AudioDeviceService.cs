@@ -21,18 +21,25 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     private readonly PolicyConfigService _policyConfigService;
     private Timer? _externalStatePollTimer;
     private readonly Dictionary<string, (float VolumeScalar, bool IsMuted, string FormatTag)> _lastKnownStateById = new();
+    private readonly SemaphoreSlim _pollSemaphore = new(1, 1);
 
     private readonly object _capturesLock = new();
     private readonly Dictionary<string, MicrophoneCaptureState> _capturesByDeviceId = new();
+    private readonly SemaphoreSlim _captureUpdateSemaphore = new(1, 1);
     private volatile bool _disposed;
+
+    private const double CaptureRestartBackoffSeconds = 5.0;
 
     private sealed class MicrophoneCaptureState
     {
         public required WasapiCapture Capture { get; init; }
+        public required MMDevice Device { get; init; }
         public required string DeviceId { get; init; }
         public DateTime LastEventRaisedAtUtc { get; set; } = DateTime.MinValue;
         public double AccumulatedPeak { get; set; } = 0.0;
         public required string DeviceFormatSignature { get; init; }
+        public bool IsStopped { get; set; } = false;
+        public DateTime LastStopTimeUtc { get; set; } = DateTime.MinValue;
     }
 
     // Debouncing for device change callbacks
@@ -93,6 +100,9 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     {
         if (_disposed) return;
 
+        // Drop this tick if a previous poll is still running to prevent concurrent dictionary mutation
+        if (!_pollSemaphore.Wait(0)) return;
+
         List<MMDevice> devices;
         try
         {
@@ -100,108 +110,130 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         }
         catch
         {
+            _pollSemaphore.Release();
             return;
         }
 
-        string? defaultId;
-        lock (_volumeNotificationLock)
+        try
         {
-            defaultId = _currentDefaultCaptureDeviceId ?? GetDefaultDeviceId(Role.Console);
-            _currentDefaultCaptureDeviceId = defaultId;
-        }
-
-        var activeIds = new HashSet<string>(devices.Select(d => d.ID));
-
-        // Drop removed devices from state map
-        var removedIds = _lastKnownStateById.Keys.Where(id => !activeIds.Contains(id)).ToList();
-        foreach (var id in removedIds)
-        {
-            _lastKnownStateById.Remove(id);
-        }
-
-        foreach (var device in devices)
-        {
-            float volume;
-            bool muted;
-            string formatTag;
-
-            try
+            string? defaultId;
+            lock (_volumeNotificationLock)
             {
-                var endpoint = device.AudioEndpointVolume;
-                if (endpoint == null) continue;
-                volume = endpoint.MasterVolumeLevelScalar;
-                muted = endpoint.Mute;
-                formatTag = GetDeviceFormat(device);
-            }
-            catch
-            {
-                continue;
+                defaultId = _currentDefaultCaptureDeviceId ?? GetDefaultDeviceId(Role.Console);
+                _currentDefaultCaptureDeviceId = defaultId;
             }
 
-            var hasVolumeChanged = false;
-            var hasFormatChanged = false;
+            var activeIds = new HashSet<string>(devices.Select(d => d.ID));
 
-            if (_lastKnownStateById.TryGetValue(device.ID, out var prior))
+            // Drop removed devices from state map
+            var removedIds = _lastKnownStateById.Keys.Where(id => !activeIds.Contains(id)).ToList();
+            foreach (var id in removedIds)
             {
-                hasVolumeChanged = Math.Abs(prior.VolumeScalar - volume) >= 0.0005f || prior.IsMuted != muted;
-                hasFormatChanged = prior.FormatTag != formatTag;
-            }
-            else
-            {
-                // First time seeing this device
-                hasVolumeChanged = true;
-                hasFormatChanged = true;
+                _lastKnownStateById.Remove(id);
             }
 
-            _lastKnownStateById[device.ID] = (volume, muted, formatTag);
-
-            if (hasVolumeChanged)
+            foreach (var device in devices)
             {
-                // Post events to UI thread
-                if (_syncContext != null)
+                float volume;
+                bool muted;
+                string formatTag;
+                string deviceId = device.ID;
+
+                try
                 {
-                    var volumeArgs = new MicrophoneVolumeChangedEventArgs(device.ID, volume, muted);
-                    _syncContext.Post(_ => MicrophoneVolumeChanged?.Invoke(this, volumeArgs), null);
+                    var endpoint = device.AudioEndpointVolume;
+                    if (endpoint == null) continue;
+                    volume = endpoint.MasterVolumeLevelScalar;
+                    muted = endpoint.Mute;
+                    formatTag = GetDeviceFormat(device);
+                }
+                catch
+                {
+                    continue;
+                }
 
-                    if (defaultId != null && device.ID == defaultId)
-                    {
-                        var defaultVolumeArgs = new DefaultMicrophoneVolumeChangedEventArgs(device.ID, volume, muted);
-                        _syncContext.Post(_ => DefaultMicrophoneVolumeChanged?.Invoke(this, defaultVolumeArgs), null);
-                    }
+                var hasVolumeChanged = false;
+                var hasFormatChanged = false;
+
+                if (_lastKnownStateById.TryGetValue(deviceId, out var prior))
+                {
+                    hasVolumeChanged = Math.Abs(prior.VolumeScalar - volume) >= 0.0005f || prior.IsMuted != muted;
+                    hasFormatChanged = prior.FormatTag != formatTag;
                 }
                 else
                 {
-                    MicrophoneVolumeChanged?.Invoke(
-                        this,
-                        new MicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+                    // First time seeing this device
+                    hasVolumeChanged = true;
+                    hasFormatChanged = true;
+                }
 
-                    if (defaultId != null && device.ID == defaultId)
+                _lastKnownStateById[deviceId] = (volume, muted, formatTag);
+
+                if (hasVolumeChanged)
+                {
+                    // Post events to UI thread
+                    if (_syncContext != null)
                     {
-                        DefaultMicrophoneVolumeChanged?.Invoke(
+                        var volumeArgs = new MicrophoneVolumeChangedEventArgs(deviceId, volume, muted);
+                        _syncContext.Post(_ => MicrophoneVolumeChanged?.Invoke(this, volumeArgs), null);
+
+                        if (defaultId != null && deviceId == defaultId)
+                        {
+                            var defaultVolumeArgs = new DefaultMicrophoneVolumeChangedEventArgs(deviceId, volume, muted);
+                            _syncContext.Post(_ => DefaultMicrophoneVolumeChanged?.Invoke(this, defaultVolumeArgs), null);
+                        }
+                    }
+                    else
+                    {
+                        MicrophoneVolumeChanged?.Invoke(
                             this,
-                            new DefaultMicrophoneVolumeChangedEventArgs(device.ID, volume, muted));
+                            new MicrophoneVolumeChangedEventArgs(deviceId, volume, muted));
+
+                        if (defaultId != null && deviceId == defaultId)
+                        {
+                            DefaultMicrophoneVolumeChanged?.Invoke(
+                                this,
+                                new DefaultMicrophoneVolumeChangedEventArgs(deviceId, volume, muted));
+                        }
+                    }
+                }
+
+                if (hasFormatChanged)
+                {
+                    // Recreate captures when format changes
+                    _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
+
+                    // Post events to UI thread
+                    if (_syncContext != null)
+                    {
+                        var formatArgs = new MicrophoneFormatChangedEventArgs(deviceId, formatTag);
+                        _syncContext.Post(_ => MicrophoneFormatChanged?.Invoke(this, formatArgs), null);
+                    }
+                    else
+                    {
+                        MicrophoneFormatChanged?.Invoke(
+                            this,
+                            new MicrophoneFormatChangedEventArgs(deviceId, formatTag));
                     }
                 }
             }
 
-            if (hasFormatChanged)
+            // Trigger capture restart if any devices have stopped captures past their backoff window
+            bool hasStoppedCaptures;
+            lock (_capturesLock)
             {
-                // Recreate captures when format changes
-                _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
-
-                // Post events to UI thread
-                if (_syncContext != null)
-                {
-                    var formatArgs = new MicrophoneFormatChangedEventArgs(device.ID, formatTag);
-                    _syncContext.Post(_ => MicrophoneFormatChanged?.Invoke(this, formatArgs), null);
-                }
-                else
-                {
-                    MicrophoneFormatChanged?.Invoke(
-                        this,
-                        new MicrophoneFormatChangedEventArgs(device.ID, formatTag));
-                }
+                hasStoppedCaptures = _capturesByDeviceId.Values.Any(s => s.IsStopped);
             }
+            if (hasStoppedCaptures)
+                _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
+        }
+        finally
+        {
+            foreach (var device in devices)
+            {
+                try { device.Dispose(); } catch { }
+            }
+            _pollSemaphore.Release();
         }
     }
 
@@ -223,7 +255,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     /// </summary>
     public void SetMicrophoneVolumeLevelScalar(string deviceId, float volumeLevelScalar)
     {
-        var device = GetDeviceById(deviceId);
+        using var device = GetDeviceById(deviceId);
         if (device?.AudioEndpointVolume == null) return;
 
         var clampedScalar = Math.Max(0.0f, Math.Min(1.0f, volumeLevelScalar));
@@ -262,18 +294,25 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
             foreach (var device in _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
             {
-                var mic = new MicrophoneDevice
+                try
                 {
-                    Id = device.ID,
-                    Name = device.FriendlyName,
-                    IsDefault = device.ID == defaultId,
-                    IsDefaultCommunication = device.ID == defaultCommId,
-                    IsMuted = GetDeviceMuteState(device),
-                    VolumeLevel = GetDeviceVolume(device),
-                    FormatTag = GetDeviceFormat(device),
-                    InputLevelPercent = GetDeviceInputLevel(device)
-                };
-                devices.Add(mic);
+                    var mic = new MicrophoneDevice
+                    {
+                        Id = device.ID,
+                        Name = device.FriendlyName,
+                        IsDefault = device.ID == defaultId,
+                        IsDefaultCommunication = device.ID == defaultCommId,
+                        IsMuted = GetDeviceMuteState(device),
+                        VolumeLevel = GetDeviceVolume(device),
+                        FormatTag = GetDeviceFormat(device),
+                        InputLevelPercent = GetDeviceInputLevel(device)
+                    };
+                    devices.Add(mic);
+                }
+                finally
+                {
+                    try { device.Dispose(); } catch { }
+                }
             }
 
             // Update cache
@@ -291,7 +330,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     {
         try
         {
-            var device = _enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, role);
+            using var device = _enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, role);
             return device?.ID;
         }
         catch
@@ -433,7 +472,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     /// </summary>
     public bool ToggleMute(string deviceId)
     {
-        var device = GetDeviceById(deviceId);
+        using var device = GetDeviceById(deviceId);
         if (device?.AudioEndpointVolume == null) return false;
 
         var newMuteState = !device.AudioEndpointVolume.Mute;
@@ -446,7 +485,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     /// </summary>
     public bool IsMuted(string deviceId)
     {
-        var device = GetDeviceById(deviceId);
+        using var device = GetDeviceById(deviceId);
         return device?.AudioEndpointVolume?.Mute ?? false;
     }
 
@@ -672,69 +711,135 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
     private async Task UpdateAllMicrophoneMeterSubscriptionsAsync()
     {
-        await Task.Run(() =>
+        // Prevent concurrent capture reconciliation tasks from piling up
+        if (!_captureUpdateSemaphore.Wait(0)) return;
+
+        try
         {
-            // Get all active capture devices
-            List<MMDevice> activeDevices;
-            try
+            await Task.Run(() =>
             {
-                activeDevices = _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
-            }
-            catch { return; }
-
-            var activeIds = new HashSet<string>(activeDevices.Select(d => d.ID));
-
-            // Remove captures for devices that no longer exist
-            lock (_capturesLock)
-            {
-                var removedIds = _capturesByDeviceId.Keys.Where(id => !activeIds.Contains(id)).ToList();
-                foreach (var deviceId in removedIds)
+                // Get all active capture devices
+                List<MMDevice> activeDevices;
+                try
                 {
-                    if (_capturesByDeviceId.TryGetValue(deviceId, out var state))
-                    {
-                        DisposeCapture(state);
-                        _capturesByDeviceId.Remove(deviceId);
-                    }
+                    activeDevices = _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
                 }
-            }
+                catch { return; }
 
-            // Add/update captures for active devices
-            foreach (var device in activeDevices)
-            {
-                var formatSig = GetDeviceFormatSignature(device);
+                var activeIds = new HashSet<string>(activeDevices.Select(d => d.ID));
+
+                // Collect captures to dispose (do not dispose while holding _capturesLock to
+                // avoid deadlock with OnCaptureRecordingStopped which also acquires _capturesLock)
+                var capturesToDispose = new List<MicrophoneCaptureState>();
 
                 lock (_capturesLock)
                 {
-                    // Check if capture exists with correct format
-                    if (_capturesByDeviceId.TryGetValue(device.ID, out var existingState))
+                    var removedIds = _capturesByDeviceId.Keys.Where(id => !activeIds.Contains(id)).ToList();
+                    foreach (var deviceId in removedIds)
                     {
-                        if (existingState.DeviceFormatSignature == formatSig)
-                            continue;
+                        if (_capturesByDeviceId.TryGetValue(deviceId, out var state))
+                        {
+                            capturesToDispose.Add(state);
+                            _capturesByDeviceId.Remove(deviceId);
+                        }
+                    }
+                }
 
-                        // Format changed - recreate
-                        DisposeCapture(existingState);
-                        _capturesByDeviceId.Remove(device.ID);
+                // Dispose removed captures outside the lock
+                foreach (var state in capturesToDispose)
+                    DisposeCapture(state);
+                capturesToDispose.Clear();
+
+                // Add/update captures for active devices
+                foreach (var device in activeDevices)
+                {
+                    var formatSig = GetDeviceFormatSignature(device);
+                    MicrophoneCaptureState? toDispose = null;
+                    bool shouldCreate = false;
+
+                    lock (_capturesLock)
+                    {
+                        if (_capturesByDeviceId.TryGetValue(device.ID, out var existingState))
+                        {
+                            bool isRunning = !existingState.IsStopped;
+                            if (existingState.DeviceFormatSignature == formatSig && isRunning)
+                            {
+                                // Capture is healthy — dispose the temporary device reference
+                                try { device.Dispose(); } catch { }
+                                continue;
+                            }
+
+                            // If stopped, enforce backoff before recreating
+                            if (existingState.IsStopped && existingState.LastStopTimeUtc != DateTime.MinValue)
+                            {
+                                var elapsed = (DateTime.UtcNow - existingState.LastStopTimeUtc).TotalSeconds;
+                                if (elapsed < CaptureRestartBackoffSeconds)
+                                {
+                                    try { device.Dispose(); } catch { }
+                                    continue;
+                                }
+                            }
+
+                            toDispose = existingState;
+                            _capturesByDeviceId.Remove(device.ID);
+                        }
+                        else
+                        {
+                            shouldCreate = true;
+                        }
                     }
 
-                    // Create new capture
+                    // Dispose old capture outside the lock
+                    if (toDispose != null)
+                    {
+                        DisposeCapture(toDispose);
+                        shouldCreate = true;
+                    }
+
+                    if (!shouldCreate)
+                    {
+                        try { device.Dispose(); } catch { }
+                        continue;
+                    }
+
+                    // Create new capture — device ownership transfers to MicrophoneCaptureState
+                    WasapiCapture? newCapture = null;
                     try
                     {
-                        var capture = new WasapiCapture(device, true, 5);
-                        capture.DataAvailable += OnCaptureDataAvailable;
-                        capture.RecordingStopped += OnCaptureRecordingStopped;
-                        capture.StartRecording();
+                        newCapture = new WasapiCapture(device, true, 5);
+                        newCapture.DataAvailable += OnCaptureDataAvailable;
+                        newCapture.RecordingStopped += OnCaptureRecordingStopped;
+                        newCapture.StartRecording();
 
-                        _capturesByDeviceId[device.ID] = new MicrophoneCaptureState
+                        lock (_capturesLock)
                         {
-                            Capture = capture,
-                            DeviceId = device.ID,
-                            DeviceFormatSignature = formatSig
-                        };
+                            _capturesByDeviceId[device.ID] = new MicrophoneCaptureState
+                            {
+                                Capture = newCapture,
+                                Device = device,
+                                DeviceId = device.ID,
+                                DeviceFormatSignature = formatSig
+                            };
+                        }
                     }
-                    catch { /* Device may not support capture */ }
+                    catch
+                    {
+                        // Creation failed — clean up both the capture and device
+                        if (newCapture != null)
+                        {
+                            try { newCapture.DataAvailable -= OnCaptureDataAvailable; } catch { }
+                            try { newCapture.RecordingStopped -= OnCaptureRecordingStopped; } catch { }
+                            try { newCapture.Dispose(); } catch { }
+                        }
+                        try { device.Dispose(); } catch { }
+                    }
                 }
-            }
-        }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            _captureUpdateSemaphore.Release();
+        }
     }
 
     private static string GetDeviceFormatSignature(MMDevice device)
@@ -754,10 +859,23 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         try { state.Capture.RecordingStopped -= OnCaptureRecordingStopped; } catch { }
         try { state.Capture.StopRecording(); } catch { }
         try { state.Capture.Dispose(); } catch { }
+        try { state.Device.Dispose(); } catch { }
     }
 
     private void OnCaptureRecordingStopped(object? sender, StoppedEventArgs e)
     {
+        if (sender is WasapiCapture capture)
+        {
+            lock (_capturesLock)
+            {
+                var state = _capturesByDeviceId.Values.FirstOrDefault(s => ReferenceEquals(s.Capture, capture));
+                if (state != null)
+                {
+                    state.IsStopped = true;
+                    state.LastStopTimeUtc = DateTime.UtcNow;
+                }
+            }
+        }
         _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
     }
 
@@ -770,7 +888,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         {
             state = _capturesByDeviceId.Values.FirstOrDefault(s => ReferenceEquals(s.Capture, capture));
         }
-        if (state == null) return;
+        if (state == null || state.IsStopped) return;
 
         // Accumulate peak
         var bufferPeak = CalculatePeakAmplitude(e.Buffer, e.BytesRecorded, capture.WaveFormat);

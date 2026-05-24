@@ -17,7 +17,11 @@ public partial class App : Application
     {
         try
         {
-            var logPath = Path.Combine(AppContext.BaseDirectory, "startup_error.log");
+            var logDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "MicrophoneManager");
+            Directory.CreateDirectory(logDir);
+            var logPath = Path.Combine(logDir, "startup_error.log");
             File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
         }
         catch { }
@@ -52,17 +56,23 @@ public partial class App : Application
     {
         try
         {
+#if DEBUG
             LogError("App constructor starting");
+#endif
 
             InitializeComponent();
+#if DEBUG
             LogError("InitializeComponent completed");
+#endif
 
             // Build dependency injection container
             Host = Microsoft.Extensions.Hosting.Host
                 .CreateDefaultBuilder()
                 .ConfigureServices(ConfigureServices)
                 .Build();
+#if DEBUG
             LogError("DI container built");
+#endif
         }
         catch (Exception ex)
         {
@@ -110,21 +120,31 @@ public partial class App : Application
     {
         try
         {
+#if DEBUG
             LogError("OnLaunched starting");
+#endif
             // Get dispatcher for UI thread access
             MainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
+#if DEBUG
             LogError("DispatcherQueue obtained");
+#endif
 
             // Initialize services
             AudioService = Host.Services.GetRequiredService<MicrophoneManager.WinUI.Services.IAudioDeviceService>();
             TrayViewModel = Host.Services.GetRequiredService<MicrophoneManager.WinUI.ViewModels.TrayViewModel>();
 
             // Create and activate main window (will be hidden, hosts tray icon)
+#if DEBUG
             LogError("Creating MainWindow");
+#endif
             m_window = Host.Services.GetRequiredService<MainWindow>();
+#if DEBUG
             LogError("MainWindow created, activating");
+#endif
             m_window.Activate();
+#if DEBUG
             LogError("MainWindow activated");
+#endif
         }
         catch (Exception ex)
         {
