@@ -1,6 +1,7 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using System;
+using System.Runtime.InteropServices;
 
 namespace MicrophoneManager.WinUI.Views;
 
@@ -9,9 +10,14 @@ namespace MicrophoneManager.WinUI.Views;
 /// </summary>
 public sealed partial class MicrophoneWindow : Window
 {
-    private const int MinClientWidth = 560;
-    private const int DefaultClientHeight = 540;
+    private const int MinClientWidth = 150;
+    private const int DefaultClientHeight = 380;
     private const int ScreenMarginPx = 12;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    private const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
 
     private readonly bool _isDocked;
 
@@ -68,6 +74,11 @@ public sealed partial class MicrophoneWindow : Window
     private void ConfigureWindow()
     {
         var appWindow = AppWindow;
+
+        // Disable DWM entrance/exit animation (the "growing" scale effect on open).
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        int disable = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_TRANSITIONS_FORCEDISABLED, ref disable, sizeof(int));
 
         if (_isDocked)
         {
@@ -154,8 +165,8 @@ public sealed partial class MicrophoneWindow : Window
                 contentSize = new Windows.Foundation.Size(contentSize.Width, desiredContentHeight);
             }
 
-            // Add RootBorder padding (16 on each side) and border thickness
-            const double borderPadding = 32 + 2; // 16*2 padding + 1*2 border
+            // Add RootBorder padding (10 on each side) and border thickness.
+            const double borderPadding = 20 + 2; // 10*2 padding + 1*2 border
             var desiredWidthDip = contentSize.Width + borderPadding;
             var desiredHeightDip = contentSize.Height + borderPadding;
 

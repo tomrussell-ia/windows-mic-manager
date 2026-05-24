@@ -14,6 +14,9 @@ public class MicrophoneDevice
     public bool IsMuted { get; init; }
     public float VolumeLevel { get; init; }
     public string FormatTag { get; init; } = "";
+    public int SampleRateHz { get; init; }
+    public int BitsPerSample { get; init; }
+    public FidelityTier FidelityTier { get; init; }
     public double InputLevelPercent { get; init; }
 
     public bool IsSelected => IsDefault || IsDefaultCommunication;

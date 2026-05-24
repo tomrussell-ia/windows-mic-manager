@@ -13,7 +13,7 @@
         x:Name="RootBorder"
         Background="{ThemeResource LayerFillColorDefaultBrush}"
         CornerRadius="8"
-        Padding="16"
+        Padding="10"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1">
 

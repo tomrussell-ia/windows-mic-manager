@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml;
 
 namespace MicrophoneManager.WinUI.Converters;
 
@@ -11,14 +12,23 @@ public class BoolToButtonBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isActive && isActive)
+        var isActive = value is bool active && active;
+        var resourceKey = isActive ? "AccentBrush" : "HoverBrush";
+
+        try
         {
-            // Active state - use accent color
-            return new SolidColorBrush(Microsoft.UI.Colors.DodgerBlue); // Similar to #0078D4
+            if (Application.Current?.Resources[resourceKey] is Brush brush)
+            {
+                return brush;
+            }
         }
-        
-        // Inactive state - use hover color
-        return new SolidColorBrush(Windows.UI.Color.FromArgb(255, 61, 61, 61)); // #3D3D3D
+        catch
+        {
+        }
+
+        return new SolidColorBrush(isActive
+            ? Microsoft.UI.Colors.DodgerBlue
+            : Windows.UI.Color.FromArgb(255, 61, 61, 61));
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

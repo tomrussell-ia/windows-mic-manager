@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MicrophoneManager.WinUI.Models;
 using MicrophoneManager.WinUI.Services;
+using Windows.UI;
 
 namespace MicrophoneManager.WinUI.ViewModels;
 
@@ -53,6 +54,28 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     private string _formatTag = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FidelityLabel), nameof(FidelityColor))]
+    private FidelityTier _fidelityTier;
+
+    public string FidelityLabel => FidelityTier switch
+    {
+        FidelityTier.Studio   => "Studio",
+        FidelityTier.High     => "High",
+        FidelityTier.Standard => "Standard",
+        FidelityTier.Reduced  => "Low Quality",
+        _                     => ""
+    };
+
+    public Color FidelityColor => FidelityTier switch
+    {
+        FidelityTier.Studio   => new Color { A = 255, R = 0,   G = 180, B = 216 }, // cyan
+        FidelityTier.High     => new Color { A = 255, R = 16,  G = 124, B = 16  }, // green
+        FidelityTier.Standard => new Color { A = 255, R = 100, G = 100, B = 100 }, // gray
+        FidelityTier.Reduced  => new Color { A = 255, R = 202, G = 80,  B = 16  }, // orange
+        _                     => new Color { A = 255, R = 100, G = 100, B = 100 }
+    };
+
+    [ObservableProperty]
     private double _inputLevelPercent;
 
     [ObservableProperty]
@@ -70,6 +93,7 @@ public partial class MicrophoneEntryViewModel : ObservableObject
         IsMuted = device.IsMuted;
         ApplyVolumeFromSystem(Math.Round(device.VolumeLevel * 100.0, 2));
         FormatTag = device.FormatTag;
+        FidelityTier = device.FidelityTier;
         UpdateMeter(device.InputLevelPercent);
     }
 
@@ -150,7 +174,9 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     [RelayCommand]
     private async Task SetDefaultAsync()
     {
-        if (IsChangingDevice) return;
+        // Already the default — Windows requires a default device at all times,
+        // so there is nothing to toggle off. Button is already highlighted.
+        if (IsDefault || IsChangingDevice) return;
 
         try
         {
@@ -175,7 +201,8 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     [RelayCommand]
     private async Task SetDefaultCommunicationAsync()
     {
-        if (IsChangingDevice) return;
+        // Already the communications default — same Windows constraint.
+        if (IsDefaultCommunication || IsChangingDevice) return;
 
         try
         {
