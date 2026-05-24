@@ -174,7 +174,9 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     [RelayCommand]
     private async Task SetDefaultAsync()
     {
-        if (IsChangingDevice) return;
+        // Already the default — Windows requires a default device at all times,
+        // so there is nothing to toggle off. Button is already highlighted.
+        if (IsDefault || IsChangingDevice) return;
 
         try
         {
@@ -199,7 +201,8 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     [RelayCommand]
     private async Task SetDefaultCommunicationAsync()
     {
-        if (IsChangingDevice) return;
+        // Already the communications default — same Windows constraint.
+        if (IsDefaultCommunication || IsChangingDevice) return;
 
         try
         {

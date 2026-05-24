@@ -2,9 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Diagnostics;
 using System.IO;
+using Windows.UI;
 
 namespace MicrophoneManager.WinUI;
 
@@ -13,6 +15,8 @@ namespace MicrophoneManager.WinUI;
 /// </summary>
 public partial class App : Application
 {
+    private static ElementTheme? _appliedTheme;
+
     private static void LogError(string message)
     {
         try
@@ -71,6 +75,60 @@ public partial class App : Application
         }
     }
 
+    internal static void ApplyThemePalette(ElementTheme actualTheme)
+    {
+        var normalizedTheme = actualTheme == ElementTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+        if (_appliedTheme == normalizedTheme)
+        {
+            return;
+        }
+
+        _appliedTheme = normalizedTheme;
+
+        if (Current?.Resources is not ResourceDictionary resources)
+        {
+            return;
+        }
+
+        if (normalizedTheme == ElementTheme.Dark)
+        {
+            SetBrushColor(resources, "AccentBrush", Color.FromArgb(255, 0, 120, 212));
+            SetBrushColor(resources, "BackgroundBrush", Color.FromArgb(255, 45, 45, 45));
+            SetBrushColor(resources, "ForegroundBrush", Color.FromArgb(255, 255, 255, 255));
+            SetBrushColor(resources, "SecondaryForegroundBrush", Color.FromArgb(255, 170, 170, 170));
+            SetBrushColor(resources, "HoverBrush", Color.FromArgb(255, 61, 61, 61));
+            SetBrushColor(resources, "FlyoutBackgroundBrush", Color.FromArgb(255, 45, 45, 45));
+            SetBrushColor(resources, "CardBackgroundBrush", Color.FromArgb(255, 61, 61, 61));
+            SetBrushColor(resources, "ErrorBannerBrush", Color.FromArgb(255, 196, 43, 28));
+            SetBrushColor(resources, "WarningBackgroundBrush", Color.FromArgb(255, 43, 31, 0));
+            SetBrushColor(resources, "WarningForegroundBrush", Color.FromArgb(255, 230, 200, 74));
+            SetBrushColor(resources, "WarningBorderBrush", Color.FromArgb(255, 230, 200, 74));
+            SetBrushColor(resources, "ButtonActiveForegroundBrush", Color.FromArgb(255, 255, 255, 255));
+            return;
+        }
+
+        SetBrushColor(resources, "AccentBrush", Color.FromArgb(255, 15, 108, 189));
+        SetBrushColor(resources, "BackgroundBrush", Color.FromArgb(255, 217, 217, 217));
+        SetBrushColor(resources, "ForegroundBrush", Color.FromArgb(255, 31, 31, 31));
+        SetBrushColor(resources, "SecondaryForegroundBrush", Color.FromArgb(255, 97, 97, 97));
+        SetBrushColor(resources, "HoverBrush", Color.FromArgb(255, 234, 234, 234));
+        SetBrushColor(resources, "FlyoutBackgroundBrush", Color.FromArgb(255, 245, 245, 245));
+        SetBrushColor(resources, "CardBackgroundBrush", Color.FromArgb(255, 255, 255, 255));
+        SetBrushColor(resources, "ErrorBannerBrush", Color.FromArgb(255, 196, 43, 28));
+        SetBrushColor(resources, "WarningBackgroundBrush", Color.FromArgb(255, 255, 244, 206));
+        SetBrushColor(resources, "WarningForegroundBrush", Color.FromArgb(255, 138, 109, 29));
+        SetBrushColor(resources, "WarningBorderBrush", Color.FromArgb(255, 214, 185, 75));
+        SetBrushColor(resources, "ButtonActiveForegroundBrush", Color.FromArgb(255, 255, 255, 255));
+    }
+
+    private static void SetBrushColor(ResourceDictionary resources, string key, Color color)
+    {
+        if (resources[key] is SolidColorBrush brush)
+        {
+            brush.Color = color;
+        }
+    }
+
     /// <summary>
     /// Configure dependency injection services
     /// </summary>
@@ -111,6 +169,7 @@ public partial class App : Application
         try
         {
             LogError("OnLaunched starting");
+            ApplyThemePalette(ElementTheme.Dark);
             // Get dispatcher for UI thread access
             MainDispatcherQueue = DispatcherQueue.GetForCurrentThread();
             LogError("DispatcherQueue obtained");

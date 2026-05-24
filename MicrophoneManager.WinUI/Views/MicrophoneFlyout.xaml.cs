@@ -19,6 +19,7 @@ public sealed partial class MicrophoneFlyout : UserControl
     public event EventHandler? ViewportHeightChanged;
 
     private double? _cardOuterHeight;
+    private readonly Dictionary<string, double> _cardOuterHeights = new(StringComparer.Ordinal);
     private bool _isUnloaded;
 
     public double? MeasuredCardOuterHeight => _cardOuterHeight;
@@ -35,6 +36,9 @@ public sealed partial class MicrophoneFlyout : UserControl
 
         InitializeComponent();
 
+        Loaded += OnLoaded;
+        ActualThemeChanged += OnActualThemeChanged;
+
         ViewModel.Microphones.CollectionChanged += Microphones_CollectionChanged;
 
         Unloaded += (s, e) =>
@@ -42,8 +46,20 @@ public sealed partial class MicrophoneFlyout : UserControl
             _isUnloaded = true;
 
             try { ViewModel.Microphones.CollectionChanged -= Microphones_CollectionChanged; } catch { }
+            try { Loaded -= OnLoaded; } catch { }
+            try { ActualThemeChanged -= OnActualThemeChanged; } catch { }
             try { ViewModel.Dispose(); } catch { }
         };
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        App.ApplyThemePalette(ActualTheme);
+    }
+
+    private void OnActualThemeChanged(FrameworkElement sender, object args)
+    {
+        App.ApplyThemePalette(sender.ActualTheme);
     }
 
     private sealed class MeterSubscription
@@ -142,21 +158,32 @@ public sealed partial class MicrophoneFlyout : UserControl
         const double visibleMinDb = -60.0;
         const double warningDb = -20.0;
         const double errorDb = -9.0;
+        var barWidth = Math.Max(1.0, host.ActualWidth);
+        var barHeight = Math.Max(1.0, host.ActualHeight);
 
         var zoneGreen = host.FindName("ZoneGreen") as Microsoft.UI.Xaml.Shapes.Rectangle;
         var zoneYellow = host.FindName("ZoneYellow") as Microsoft.UI.Xaml.Shapes.Rectangle;
         var zoneRed = host.FindName("ZoneRed") as Microsoft.UI.Xaml.Shapes.Rectangle;
         var tickCanvas = host.FindName("TickCanvas") as Microsoft.UI.Xaml.Controls.Canvas;
-        var axisCanvas = host.FindName("AxisCanvas") as Microsoft.UI.Xaml.Controls.Canvas;
 
         if (host.FindName("MeterFill") is not Microsoft.UI.Xaml.Shapes.Rectangle fill) return;
         if (host.FindName("PeakMarker") is not Microsoft.UI.Xaml.Shapes.Rectangle marker) return;
 
-        var width = host.ActualWidth;
-        if (width <= 0)
+        fill.Width = barWidth;
+        marker.Width = barWidth;
+        if (zoneGreen != null) zoneGreen.Width = barWidth;
+        if (zoneYellow != null) zoneYellow.Width = barWidth;
+        if (zoneRed != null) zoneRed.Width = barWidth;
+        if (tickCanvas != null)
         {
-            fill.Width = 0;
-            Microsoft.UI.Xaml.Controls.Canvas.SetLeft(marker, 0);
+            tickCanvas.Width = barWidth;
+            tickCanvas.Height = barHeight;
+        }
+
+        if (host.ActualWidth <= 0 || host.ActualHeight <= 0)
+        {
+            fill.Height = 0;
+            Microsoft.UI.Xaml.Controls.Canvas.SetTop(marker, 0);
             return;
         }
 
@@ -168,20 +195,20 @@ public sealed partial class MicrophoneFlyout : UserControl
             return Math.Clamp((obsPercent - minObsPercent) / (100.0 - minObsPercent) * 100.0, 0.0, 100.0);
         }
 
-        void SetZone(Microsoft.UI.Xaml.Shapes.Rectangle? rect, double leftPercentVisible, double rightPercentVisible)
+        void SetZone(Microsoft.UI.Xaml.Shapes.Rectangle? rect, double lowerPercentVisible, double upperPercentVisible)
         {
             if (rect == null) return;
-            leftPercentVisible = Math.Clamp(leftPercentVisible, 0.0, 100.0);
-            rightPercentVisible = Math.Clamp(rightPercentVisible, 0.0, 100.0);
-            if (rightPercentVisible < leftPercentVisible)
+            lowerPercentVisible = Math.Clamp(lowerPercentVisible, 0.0, 100.0);
+            upperPercentVisible = Math.Clamp(upperPercentVisible, 0.0, 100.0);
+            if (upperPercentVisible < lowerPercentVisible)
             {
-                (leftPercentVisible, rightPercentVisible) = (rightPercentVisible, leftPercentVisible);
+                (lowerPercentVisible, upperPercentVisible) = (upperPercentVisible, lowerPercentVisible);
             }
 
-            var leftPx = width * (leftPercentVisible / 100.0);
-            var rightPx = width * (rightPercentVisible / 100.0);
-            rect.Width = Math.Max(0.0, rightPx - leftPx);
-            Microsoft.UI.Xaml.Controls.Canvas.SetLeft(rect, leftPx);
+            var zoneHeight = barHeight * ((upperPercentVisible - lowerPercentVisible) / 100.0);
+            var zoneTop = barHeight * (1.0 - (upperPercentVisible / 100.0));
+            rect.Height = Math.Max(0.0, zoneHeight);
+            Microsoft.UI.Xaml.Controls.Canvas.SetTop(rect, Math.Clamp(zoneTop, 0.0, Math.Max(0.0, barHeight - rect.Height)));
         }
 
         // Background zones: [-60..-20]=green, [-20..-9]=yellow, [-9..0]=red.
@@ -204,8 +231,8 @@ public sealed partial class MicrophoneFlyout : UserControl
                 {
                     var tick = new Microsoft.UI.Xaml.Shapes.Rectangle
                     {
-                        Width = 1,
-                        Height = 8,
+                        Width = barWidth,
+                        Height = 1,
                         Fill = (Brush)Application.Current.Resources["ForegroundBrush"],
                         Opacity = 0.35,
                         IsHitTestVisible = false
@@ -219,50 +246,11 @@ public sealed partial class MicrophoneFlyout : UserControl
             for (var i = 0; i < count; i++)
             {
                 if (tickCanvas.Children[i] is not Microsoft.UI.Xaml.Shapes.Rectangle tick) continue;
+                tick.Width = barWidth;
                 var tickPercent = RescaleObsPercentToVisible(ObsMeterMath.DbToPercent(tickDbsUpdate[i]));
-                var tickX = (width * (tickPercent / 100.0)) - (tick.Width / 2.0);
-                tickX = Math.Clamp(tickX, 0.0, Math.Max(0.0, width - tick.Width));
-                Microsoft.UI.Xaml.Controls.Canvas.SetLeft(tick, tickX);
-            }
-        }
-
-        // Axis labels: keep sparse so they don't overlap in narrow flyout.
-        if (axisCanvas != null)
-        {
-            if (axisCanvas.Children.Count == 0)
-            {
-                // Key labels aligned to OBS-style scale.
-                var labelDbs = new[] { -60.0, -40.0, -20.0, -10.0, 0.0 };
-                foreach (var db in labelDbs)
-                {
-                    var label = new TextBlock
-                    {
-                        Text = db.ToString("0"),
-                        FontSize = 10,
-                        Foreground = (Brush)Application.Current.Resources["ForegroundBrush"],
-                        Opacity = 0.55,
-                        IsHitTestVisible = false
-                    };
-                    axisCanvas.Children.Add(label);
-                }
-            }
-
-            var labelDbsUpdate = new[] { -60.0, -40.0, -20.0, -10.0, 0.0 };
-            var labelCount = Math.Min(axisCanvas.Children.Count, labelDbsUpdate.Length);
-            for (var i = 0; i < labelCount; i++)
-            {
-                if (axisCanvas.Children[i] is not TextBlock label) continue;
-                label.Text = labelDbsUpdate[i].ToString("0");
-
-                var labelPercent = RescaleObsPercentToVisible(ObsMeterMath.DbToPercent(labelDbsUpdate[i]));
-                var xCenter = width * (labelPercent / 100.0);
-
-                // Approximate centering without forcing measure; keep stable.
-                var estimatedWidth = label.Text.Length * 7.0;
-                var xLeft = xCenter - (estimatedWidth / 2.0);
-                xLeft = Math.Clamp(xLeft, 0.0, Math.Max(0.0, width - estimatedWidth));
-                Microsoft.UI.Xaml.Controls.Canvas.SetLeft(label, xLeft);
-                Microsoft.UI.Xaml.Controls.Canvas.SetTop(label, 0);
+                var tickY = (barHeight * (1.0 - (tickPercent / 100.0))) - (tick.Height / 2.0);
+                tickY = Math.Clamp(tickY, 0.0, Math.Max(0.0, barHeight - tick.Height));
+                Microsoft.UI.Xaml.Controls.Canvas.SetTop(tick, tickY);
             }
         }
 
@@ -273,16 +261,44 @@ public sealed partial class MicrophoneFlyout : UserControl
         var inputPercent = RescaleObsPercentToVisible(inputPercentObs);
         var peakPercent = RescaleObsPercentToVisible(peakPercentObs);
 
-        fill.Width = width * (inputPercent / 100.0);
+        fill.Height = barHeight * (inputPercent / 100.0);
+        Microsoft.UI.Xaml.Controls.Canvas.SetTop(fill, Math.Max(0.0, barHeight - fill.Height));
 
-        var markerWidth = marker.Width;
-        var markerX = (width * (peakPercent / 100.0)) - (markerWidth / 2.0);
-        markerX = Math.Clamp(markerX, 0.0, Math.Max(0.0, width - markerWidth));
-        Microsoft.UI.Xaml.Controls.Canvas.SetLeft(marker, markerX);
+        var markerHeight = marker.Height;
+        var markerY = (barHeight * (1.0 - (peakPercent / 100.0))) - (markerHeight / 2.0);
+        markerY = Math.Clamp(markerY, 0.0, Math.Max(0.0, barHeight - markerHeight));
+        Microsoft.UI.Xaml.Controls.Canvas.SetTop(marker, markerY);
     }
 
     private void Microphones_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        var activeIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var microphone in ViewModel.Microphones)
+        {
+            if (!string.IsNullOrWhiteSpace(microphone.Id))
+            {
+                activeIds.Add(microphone.Id);
+            }
+        }
+
+        if (_cardOuterHeights.Count > 0)
+        {
+            var staleIds = new List<string>();
+            foreach (var id in _cardOuterHeights.Keys)
+            {
+                if (!activeIds.Contains(id))
+                {
+                    staleIds.Add(id);
+                }
+            }
+
+            foreach (var id in staleIds)
+            {
+                _cardOuterHeights.Remove(id);
+            }
+        }
+
+        RefreshMeasuredCardOuterHeight();
         UpdateViewportHeight();
     }
 
@@ -303,6 +319,15 @@ public sealed partial class MicrophoneFlyout : UserControl
     {
         if (_isUnloaded) return;
 
+        // Deadband: ignore sub-pixel height changes to prevent infinite resize loops.
+        // When the window resizes, cards may re-layout with tiny height deltas that
+        // would otherwise trigger another resize.
+        if (Math.Abs(e.NewSize.Height - e.PreviousSize.Height) < 2.0 &&
+            e.PreviousSize.Height > 0)
+        {
+            return;
+        }
+
         var updated = TryCaptureCardOuterHeight(sender as FrameworkElement);
         if (updated)
         {
@@ -319,16 +344,48 @@ public sealed partial class MicrophoneFlyout : UserControl
         var outer = element.ActualHeight + margin.Top + margin.Bottom;
         if (outer <= 0) return false;
 
-        // Keep the maximum observed card height so we don't end up shrinking to a smaller
-        // card and clipping a larger one.
-        if (_cardOuterHeight == null || outer > _cardOuterHeight.Value + 0.5)
+        var viewModel = element.DataContext as MicrophoneEntryViewModel;
+        var id = viewModel?.Id;
+
+        var updated = false;
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            if (!_cardOuterHeights.TryGetValue(id, out var existing) || Math.Abs(existing - outer) > 0.5)
+            {
+                _cardOuterHeights[id] = outer;
+                updated = true;
+            }
+        }
+
+        // Track the largest realized card as a fallback while some cards are still unmeasured.
+        // Use a 2px deadband to prevent sub-pixel jitter from triggering endless resizes.
+        if (_cardOuterHeight == null || outer > _cardOuterHeight.Value + 2.0)
         {
             _cardOuterHeight = outer;
             App.Trace($"Measured card outer height={outer:0.0}");
-            return true;
+            updated = true;
         }
 
-        return false;
+        if (updated)
+        {
+            RefreshMeasuredCardOuterHeight();
+        }
+
+        return updated;
+    }
+
+    private void RefreshMeasuredCardOuterHeight()
+    {
+        double? max = null;
+        foreach (var height in _cardOuterHeights.Values)
+        {
+            if (max == null || height > max.Value)
+            {
+                max = height;
+            }
+        }
+
+        _cardOuterHeight = max;
     }
 
     private static T? FindFirstDescendant<T>(DependencyObject root) where T : DependencyObject
@@ -362,16 +419,27 @@ public sealed partial class MicrophoneFlyout : UserControl
     /// </summary>
     public Windows.Foundation.Size GetDesiredContentSize()
     {
-        // Prefer a computed height based on real card measurements.
-        // This avoids relying on ScrollViewer DesiredSize which can be constrained.
         var desiredHeight = GetDesiredContentHeight();
-        var desiredWidth = RootGrid?.DesiredSize.Width ?? RootGrid?.ActualWidth ?? 0;
+        var desiredWidth = GetDesiredContentWidth();
         return new Windows.Foundation.Size(desiredWidth, desiredHeight);
+    }
+
+    public double GetDesiredContentWidth()
+    {
+        // Each card is Width="116" with Margin left=3 = 119px per card.
+        // Add 8px slack: DIP-to-pixel rounding at non-integer DPI scales (e.g. 125%) can
+        // cause the physical window to be 2-4px narrower than the cards need, triggering
+        // a horizontal scrollbar on a window that is already sized to fit its content.
+        const double cardOuterWidth = 119.0;
+        const double widthSlack = 8.0;
+        var padding = RootGrid?.Padding ?? new Thickness(0);
+        var count = Math.Max(1, ViewModel.Microphones.Count);
+        return padding.Left + padding.Right + (count * cardOuterWidth) + widthSlack;
     }
 
     public double GetDesiredContentHeight()
     {
-        const double layoutSlack = 4.0;
+        const double layoutSlack = 2.0;
 
         // Base padding of the flyout root grid.
         var padding = RootGrid?.Padding ?? new Thickness(0);
@@ -417,19 +485,15 @@ public sealed partial class MicrophoneFlyout : UserControl
             {
             }
 
-            // If still unknown, assume a conservative 2-card minimum rather than a single small fallback.
+            // If still unknown, fall back to estimated single-card height.
             if (_cardOuterHeight == null || _cardOuterHeight.Value <= 0)
             {
-                return Math.Max(baseHeight + 420, 420);
+                return Math.Max(baseHeight + 380, 380);
             }
         }
 
-        // Show all cards (clamped to screen later), but guarantee that when there are
-        // 2+ microphones we request enough height for at least 2 full cards.
-        var cardsToShow = count >= 2 ? Math.Max(2, count) : 1;
-        var cardsHeight = cardsToShow * _cardOuterHeight.Value;
-
-        return baseHeight + cardsHeight;
+        // Horizontal mixer: height = tallest single card, not the sum of all cards.
+        return baseHeight + _cardOuterHeight.Value;
     }
 
     private void DockButton_Click(object sender, RoutedEventArgs e)
