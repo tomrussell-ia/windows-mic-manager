@@ -20,6 +20,8 @@ public sealed partial class MicrophoneWindow : Window
     private const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
 
     private readonly bool _isDocked;
+    private OverlappedPresenter? _dockedPresenter;
+    private bool _wasMinimized;
 
     public MicrophoneWindow(bool isDocked = false)
     {
@@ -92,6 +94,9 @@ public sealed partial class MicrophoneWindow : Window
             presenter.IsMinimizable = true;
             presenter.IsAlwaysOnTop = false;
             appWindow.SetPresenter(presenter);
+
+            _dockedPresenter = presenter;
+            appWindow.Changed += AppWindow_Changed;
         }
         else
         {
@@ -132,8 +137,25 @@ public sealed partial class MicrophoneWindow : Window
         ResizeAndPosition();
     }
 
+    private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        if (_dockedPresenter == null || !args.DidPresenterChange) return;
+
+        var isMinimized = _dockedPresenter.State == OverlappedPresenterState.Minimized;
+        if (isMinimized == _wasMinimized) return;
+        _wasMinimized = isMinimized;
+
+        try { Flyout.ViewModel.SetMeteringEnabled(!isMinimized); } catch { }
+    }
+
     private void MicrophoneWindow_Closed(object sender, WindowEventArgs args)
     {
+        if (_dockedPresenter != null)
+        {
+            try { AppWindow.Changed -= AppWindow_Changed; } catch { }
+            _dockedPresenter = null;
+        }
+
         try { Flyout.ViewModel.Dispose(); } catch { }
 
         if (_isDocked)

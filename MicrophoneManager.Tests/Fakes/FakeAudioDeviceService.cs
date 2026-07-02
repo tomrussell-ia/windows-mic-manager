@@ -11,6 +11,10 @@ public class FakeAudioDeviceService : IAudioDeviceService
     public string? DefaultConsoleId { get; set; }
     public string? DefaultCommunicationsId { get; set; }
 
+    public int MeteringAcquireCount { get; private set; }
+    public int MeteringReleaseCount { get; private set; }
+    public int MeteringRefCount => MeteringAcquireCount - MeteringReleaseCount;
+
     public event EventHandler? DevicesChanged;
     public event EventHandler? DefaultDeviceChanged;
     public event EventHandler<AudioDeviceService.DefaultMicrophoneVolumeChangedEventArgs>? DefaultMicrophoneVolumeChanged;
@@ -199,6 +203,16 @@ public class FakeAudioDeviceService : IAudioDeviceService
     public Task<bool> ToggleDefaultMicrophoneMuteAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(ToggleDefaultMicrophoneMute());
+    }
+
+    public void AcquireMetering()
+    {
+        MeteringAcquireCount++;
+    }
+
+    public void ReleaseMetering()
+    {
+        MeteringReleaseCount++;
     }
 
     public void Dispose()

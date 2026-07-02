@@ -85,6 +85,35 @@ public class MicrophoneListViewModelTests
     }
 
     [Fact]
+    public void SetMeteringEnabledAcquiresAndReleasesCaptureExactlyOncePerTransition()
+    {
+        var fakeService = new FakeAudioDeviceService();
+        var viewModel = new MicrophoneListViewModel(fakeService);
+
+        // Constructor leaves metering off; it must not have acquired capture.
+        Assert.Equal(0, fakeService.MeteringAcquireCount);
+        Assert.Equal(0, fakeService.MeteringReleaseCount);
+
+        viewModel.SetMeteringEnabled(true);
+        Assert.Equal(1, fakeService.MeteringAcquireCount);
+        Assert.Equal(0, fakeService.MeteringReleaseCount);
+
+        // Repeating the same state must not double-acquire.
+        viewModel.SetMeteringEnabled(true);
+        Assert.Equal(1, fakeService.MeteringAcquireCount);
+
+        viewModel.SetMeteringEnabled(false);
+        Assert.Equal(1, fakeService.MeteringAcquireCount);
+        Assert.Equal(1, fakeService.MeteringReleaseCount);
+
+        // Repeating the same state must not double-release.
+        viewModel.SetMeteringEnabled(false);
+        Assert.Equal(1, fakeService.MeteringReleaseCount);
+
+        Assert.Equal(0, fakeService.MeteringRefCount);
+    }
+
+    [Fact]
     public void PerDeviceVolumeEventsUpdateNonDefaultEntries()
     {
         var fakeService = new FakeAudioDeviceService();
