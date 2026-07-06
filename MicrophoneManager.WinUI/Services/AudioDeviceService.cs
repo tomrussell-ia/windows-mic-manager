@@ -87,11 +87,10 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     /// </summary>
     public void AcquireMetering()
     {
-        if (_disposed) return;
-
         bool shouldStart;
         lock (_capturesLock)
         {
+            if (_disposed) return;
             shouldStart = _meteringRefCount == 0;
             _meteringRefCount++;
         }
@@ -118,17 +117,26 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
         if (shouldStop)
         {
-            // Block until any in-flight capture-creation reconciliation finishes before
-            // tearing down, otherwise a capture it creates could outlive this release.
-            _captureUpdateSemaphore.Wait();
-            try
+            // Fire-and-forget: do not block the caller (may be on UI thread).
+            // Re-check the ref count after acquiring the semaphore — a new AcquireMetering()
+            // could have arrived between our decrement and when we get the semaphore; if so,
+            // leave captures running.
+            _ = Task.Run(async () =>
             {
-                StopAllCaptures();
-            }
-            finally
-            {
-                _captureUpdateSemaphore.Release();
-            }
+                await _captureUpdateSemaphore.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    lock (_capturesLock)
+                    {
+                        if (_meteringRefCount > 0) return;
+                    }
+                    StopAllCaptures();
+                }
+                finally
+                {
+                    _captureUpdateSemaphore.Release();
+                }
+            });
         }
     }
 
@@ -1169,9 +1177,11 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
+        lock (_capturesLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+        }
         try
         {
             _externalStatePollTimer?.Dispose();
