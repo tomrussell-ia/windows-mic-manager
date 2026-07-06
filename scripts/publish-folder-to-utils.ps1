@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DestinationDir = 'D:\utils\MicrophoneManager',
+    [string]$DestinationDir = 'D:\utils',
     [string]$Project = 'MicrophoneManager.WinUI\MicrophoneManager.WinUI.csproj',
     [string]$PublishProfile = 'win-x64-singlefile'
 )
