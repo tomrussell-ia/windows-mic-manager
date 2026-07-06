@@ -236,6 +236,17 @@ public partial class MicrophoneListViewModel : ObservableObject, IDisposable
 
         _meteringEnabled = enabled;
 
+        // Actually start/stop microphone capture — this is what acquires/releases the mic.
+        // Independent of the UI dispatcher so it still works in headless/test contexts.
+        if (enabled)
+        {
+            _audioService.AcquireMetering();
+        }
+        else
+        {
+            _audioService.ReleaseMetering();
+        }
+
         if (_dispatcherQueue == null)
         {
             return;

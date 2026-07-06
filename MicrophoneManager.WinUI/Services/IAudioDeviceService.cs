@@ -24,6 +24,18 @@ public interface IAudioDeviceService : IDisposable
     bool ToggleDefaultMicrophoneMute();
     bool IsDefaultMicrophoneMuted();
 
+    /// <summary>
+    /// Signals that a metering UI is visible. Reference-counted: capture starts on the
+    /// first acquire and only stops once every acquire has a matching release.
+    /// </summary>
+    void AcquireMetering();
+
+    /// <summary>
+    /// Signals that a metering UI is no longer visible. Stops capture once the last
+    /// outstanding acquire is released.
+    /// </summary>
+    void ReleaseMetering();
+
     // Async methods to prevent UI thread blocking
     Task<List<MicrophoneDevice>> GetMicrophonesAsync(CancellationToken cancellationToken = default);
     Task<string?> GetDefaultDeviceIdAsync(Role role, CancellationToken cancellationToken = default);

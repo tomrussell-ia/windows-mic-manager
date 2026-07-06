@@ -26,6 +26,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     private readonly object _capturesLock = new();
     private readonly Dictionary<string, MicrophoneCaptureState> _capturesByDeviceId = new();
     private readonly SemaphoreSlim _captureUpdateSemaphore = new(1, 1);
+    private int _meteringRefCount;
     private volatile bool _disposed;
 
     private const double CaptureRestartBackoffSeconds = 5.0;
@@ -75,8 +76,83 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         // Fallback: poll for external volume/mute changes (Sound settings, other apps)
         StartExternalStatePolling();
 
-        // Track input levels for all microphones (real-time meters)
-        _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
+        // Live input-level capture (WASAPI) is started on demand via AcquireMetering(),
+        // not here — holding the microphone open for the whole process lifetime defeats
+        // the point of a tray app and keeps the OS mic-in-use indicator lit.
+    }
+
+    /// <summary>
+    /// Signals that a metering UI is visible. Starts microphone capture on the first
+    /// acquire; nested acquires just increment the reference count.
+    /// </summary>
+    public void AcquireMetering()
+    {
+        bool shouldStart;
+        lock (_capturesLock)
+        {
+            if (_disposed) return;
+            shouldStart = _meteringRefCount == 0;
+            _meteringRefCount++;
+        }
+
+        if (shouldStart)
+        {
+            _ = UpdateAllMicrophoneMeterSubscriptionsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Signals that a metering UI is no longer visible. Stops microphone capture once
+    /// the last outstanding acquire is released.
+    /// </summary>
+    public void ReleaseMetering()
+    {
+        bool shouldStop;
+        lock (_capturesLock)
+        {
+            if (_meteringRefCount == 0) return;
+            _meteringRefCount--;
+            shouldStop = _meteringRefCount == 0;
+        }
+
+        if (shouldStop)
+        {
+            // Fire-and-forget: do not block the caller (may be on UI thread).
+            // Re-check the ref count after acquiring the semaphore — a new AcquireMetering()
+            // could have arrived between our decrement and when we get the semaphore; if so,
+            // leave captures running.
+            _ = Task.Run(async () =>
+            {
+                await _captureUpdateSemaphore.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    lock (_capturesLock)
+                    {
+                        if (_meteringRefCount > 0) return;
+                    }
+                    StopAllCaptures();
+                }
+                finally
+                {
+                    _captureUpdateSemaphore.Release();
+                }
+            });
+        }
+    }
+
+    private void StopAllCaptures()
+    {
+        List<MicrophoneCaptureState> capturesToDispose;
+        lock (_capturesLock)
+        {
+            capturesToDispose = new List<MicrophoneCaptureState>(_capturesByDeviceId.Values);
+            _capturesByDeviceId.Clear();
+        }
+
+        foreach (var state in capturesToDispose)
+        {
+            DisposeCapture(state);
+        }
     }
 
     private void StartExternalStatePolling()
@@ -726,6 +802,13 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         {
             await Task.Run(() =>
             {
+                // No metering UI is visible — don't (re)create captures. StopAllCaptures()
+                // already tore down anything that was running when the last release fired.
+                lock (_capturesLock)
+                {
+                    if (_meteringRefCount == 0) return;
+                }
+
                 // Get all active capture devices
                 List<MMDevice> activeDevices;
                 try
@@ -1094,9 +1177,11 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
+        lock (_capturesLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+        }
         try
         {
             _externalStatePollTimer?.Dispose();
@@ -1111,13 +1196,14 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         catch { }
         _deviceChangeDebounceTimer = null;
 
-        lock (_capturesLock)
+        _captureUpdateSemaphore.Wait();
+        try
         {
-            foreach (var state in _capturesByDeviceId.Values)
-            {
-                DisposeCapture(state);
-            }
-            _capturesByDeviceId.Clear();
+            StopAllCaptures();
+        }
+        finally
+        {
+            _captureUpdateSemaphore.Release();
         }
 
         lock (_volumeNotificationLock)
