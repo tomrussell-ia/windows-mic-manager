@@ -46,7 +46,9 @@
                        BorderBrush="Transparent"
                       Padding="2"
                        Click="DismissError_Click"
-                       ToolTipService.ToolTip="Dismiss">
+                      ToolTipService.ToolTip="Dismiss"
+                      AutomationProperties.AutomationId="DismissErrorButton"
+                      AutomationProperties.Name="Dismiss error">
                     <FontIcon Glyph="&#xE711;"
                              FontSize="10"
                              Foreground="White"/>
@@ -75,7 +77,9 @@
                     BorderBrush="Transparent"
                     Padding="2"
                     Click="DockButton_Click"
-                    ToolTipService.ToolTip="Dock / Undock">
+                    ToolTipService.ToolTip="Dock / Undock"
+                    AutomationProperties.AutomationId="DockButton"
+                    AutomationProperties.Name="Dock or undock microphone manager">
                 <FontIcon x:Name="DockIcon"
                          Glyph="&#xE718;"
                          FontSize="14"
@@ -223,6 +227,8 @@
                                            Minimum="0"
                                            Maximum="100"
                                            ToolTipService.ToolTip="Volume"
+                                           AutomationProperties.AutomationId="{x:Bind VolumeSliderAutomationId, Mode=OneWay}"
+                                         AutomationProperties.Name="Microphone volume"
                                            Value="{x:Bind VolumePercent, Mode=TwoWay}"/>
                                 </Grid>
 
@@ -239,6 +245,8 @@
                                            HorizontalAlignment="Stretch"
                                            Height="28" Padding="0"
                                            ToolTipService.ToolTip="Set as default device (apps, games, system sounds)"
+                                           AutomationProperties.AutomationId="{x:Bind SetDefaultAutomationId, Mode=OneWay}"
+                                         AutomationProperties.Name="Set as default microphone"
                                            Background="{x:Bind IsDefault, Mode=OneWay, Converter={StaticResource BoolToButtonBrush}}">
                                         <FontIcon Glyph="&#xE7F4;"
                                                  FontSize="13"/>
@@ -249,6 +257,8 @@
                                            HorizontalAlignment="Stretch"
                                            Height="28" Padding="0"
                                            ToolTipService.ToolTip="Set as default communications device (Teams, Zoom, Discord)"
+                                           AutomationProperties.AutomationId="{x:Bind SetDefaultCommunicationAutomationId, Mode=OneWay}"
+                                         AutomationProperties.Name="Set as default communications microphone"
                                            Background="{x:Bind IsDefaultCommunication, Mode=OneWay, Converter={StaticResource BoolToButtonBrush}}">
                                         <FontIcon Glyph="&#xE717;"
                                                  FontSize="13"/>
@@ -259,6 +269,8 @@
                                            HorizontalAlignment="Stretch"
                                            Height="28" Padding="0"
                                            ToolTipService.ToolTip="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToLabel}}"
+                                           AutomationProperties.AutomationId="{x:Bind ToggleMuteAutomationId, Mode=OneWay}"
+                                         AutomationProperties.Name="Toggle microphone mute"
                                            Background="{ThemeResource HoverBrush}">
                                         <FontIcon Glyph="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToIcon}}"
                                                  FontSize="13"

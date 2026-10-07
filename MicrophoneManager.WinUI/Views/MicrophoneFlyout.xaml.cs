@@ -7,7 +7,6 @@ using MicrophoneManager.WinUI.Services;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using Windows.UI;
 using System.Collections.Specialized;
 
 namespace MicrophoneManager.WinUI.Views;
@@ -523,34 +522,5 @@ public sealed partial class MicrophoneFlyout : UserControl
     private void DismissError_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.DismissError();
-    }
-}
-
-// Extension methods for MicrophoneEntryViewModel to add helper functions
-public static class MicrophoneViewModelExtensions
-{
-    // Helper functions for x:Bind in DataTemplate
-    public static string GetMuteIcon(this MicrophoneEntryViewModel vm, bool isMuted)
-    {
-        return isMuted ? "\uE74F" : "\uE720";
-    }
-
-    public static string GetMuteTooltip(this MicrophoneEntryViewModel vm, bool isMuted)
-    {
-        return isMuted ? "Unmute" : "Mute";
-    }
-
-    public static Color GetDefaultButtonColor(this MicrophoneEntryViewModel vm, bool isDefault)
-    {
-        return isDefault
-            ? Color.FromArgb(255, 30, 136, 229) // Blue
-            : Color.FromArgb(255, 61, 61, 61);   // Gray
-    }
-
-    public static Color GetCommButtonColor(this MicrophoneEntryViewModel vm, bool isDefaultComm)
-    {
-        return isDefaultComm
-            ? Color.FromArgb(255, 106, 27, 154) // Purple
-            : Color.FromArgb(255, 61, 61, 61);   // Gray
     }
 }

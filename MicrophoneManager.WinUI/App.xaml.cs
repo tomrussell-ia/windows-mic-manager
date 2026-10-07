@@ -133,7 +133,7 @@ public partial class App : Application
 
     private static void SetBrushColor(ResourceDictionary resources, string key, Color color)
     {
-        if (resources[key] is SolidColorBrush brush)
+        if (resources.TryGetValue(key, out var resource) && resource is SolidColorBrush brush)
         {
             brush.Color = color;
         }

@@ -35,6 +35,11 @@ public partial class MicrophoneEntryViewModel : ObservableObject
 
     public string Id { get; private set; } = string.Empty;
 
+    public string VolumeSliderAutomationId => $"MicrophoneVolumeSlider-{Id}";
+    public string SetDefaultAutomationId => $"SetDefaultButton-{Id}";
+    public string SetDefaultCommunicationAutomationId => $"SetDefaultCommunicationButton-{Id}";
+    public string ToggleMuteAutomationId => $"ToggleMuteButton-{Id}";
+
     [ObservableProperty]
     private string _name = string.Empty;
 
@@ -87,6 +92,10 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     public void UpdateFrom(MicrophoneDevice device)
     {
         Id = device.Id;
+        OnPropertyChanged(nameof(VolumeSliderAutomationId));
+        OnPropertyChanged(nameof(SetDefaultAutomationId));
+        OnPropertyChanged(nameof(SetDefaultCommunicationAutomationId));
+        OnPropertyChanged(nameof(ToggleMuteAutomationId));
         Name = device.Name;
         IsDefault = device.IsDefault;
         IsDefaultCommunication = device.IsDefaultCommunication;
