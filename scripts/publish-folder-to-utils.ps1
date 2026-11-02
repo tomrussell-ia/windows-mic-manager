@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DestinationDir = 'D:\resources',
+    [string]$DestinationDir = '~\resources',
     [string]$Project = 'MicrophoneManager.WinUI\MicrophoneManager.WinUI.csproj',
     [string]$PublishProfile = 'win-x64-singlefile'
 )
@@ -32,19 +32,18 @@ if (-not (Test-Path -LiteralPath $publishDir)) {
     throw "Publish folder not found."
 }
 
-# Remove existing destination folder if it exists
-if (Test-Path -LiteralPath $DestinationDir) {
-    Write-Host "Removing existing folder: $DestinationDir" -ForegroundColor Yellow
-    Remove-Item -LiteralPath $DestinationDir -Recurse -Force
+# Resolve '~' to the user profile (it is not expanded for all path operations)
+if ($DestinationDir -match '^~([\\/]|$)') {
+    $DestinationDir = Join-Path $HOME $DestinationDir.Substring(1).TrimStart('\','/')
 }
 
-# Create parent directory if needed
-$parentDir = Split-Path -Parent $DestinationDir
-New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+# The destination may be a shared folder containing unrelated tools, so never delete
+# it or anything in it. Only the files produced by the publish are copied (overwriting
+# same-named files, e.g. a previous MicrophoneManager.WinUI.exe).
+New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null
 
-# Copy entire publish folder
 try {
-    Copy-Item -LiteralPath $publishDir -Destination $DestinationDir -Recurse -Force
+    Copy-Item -Path (Join-Path $publishDir '*') -Destination $DestinationDir -Recurse -Force
     Write-Host "Successfully published to: $DestinationDir" -ForegroundColor Green
     Write-Host "Executable: $(Join-Path $DestinationDir 'MicrophoneManager.WinUI.exe')" -ForegroundColor Green
 } catch {
