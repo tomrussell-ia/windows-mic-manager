@@ -73,6 +73,7 @@
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                CornerRadius="6"
                                Width="116"
+                               VerticalAlignment="Top"
                                Padding="6"
                                Margin="3,0,0,0"
                                Loaded="MicrophoneCard_Loaded"

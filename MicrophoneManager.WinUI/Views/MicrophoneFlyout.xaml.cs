@@ -434,7 +434,7 @@ public sealed partial class MicrophoneFlyout : UserControl
 
     public double GetDesiredContentHeight()
     {
-        const double layoutSlack = 8.0;
+        const double layoutSlack = 4.0;
 
         // Base padding of the flyout root grid.
         var padding = RootGrid?.Padding ?? new Thickness(0);
@@ -496,7 +496,12 @@ public sealed partial class MicrophoneFlyout : UserControl
             if (MicrophoneList != null)
             {
                 MicrophoneList.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-                cardHeight = Math.Max(cardHeight, MicrophoneList.DesiredSize.Height);
+                // DesiredSize is the natural content height; unlike ActualHeight it does not
+                // include stretch from a previous resize, so it cannot feed back and grow.
+                if (MicrophoneList.DesiredSize.Height > 0)
+                {
+                    cardHeight = MicrophoneList.DesiredSize.Height;
+                }
             }
         }
         catch
