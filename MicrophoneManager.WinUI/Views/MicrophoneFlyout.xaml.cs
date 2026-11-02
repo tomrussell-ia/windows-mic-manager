@@ -434,7 +434,7 @@ public sealed partial class MicrophoneFlyout : UserControl
 
     public double GetDesiredContentHeight()
     {
-        const double layoutSlack = 4.0;
+        const double layoutSlack = 10.0;
 
         // Base padding of the flyout root grid.
         var padding = RootGrid?.Padding ?? new Thickness(0);
