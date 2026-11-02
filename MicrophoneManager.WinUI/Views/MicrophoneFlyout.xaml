@@ -129,7 +129,7 @@
                                         CornerRadius="3"
                                         Padding="4,0"
                                         VerticalAlignment="Stretch"
-                                        Opacity="{x:Bind IsDefaultCommunication, Mode=OneWay, Converter={StaticResource BoolToOpacity}}"
+                                        Opacity="{x:Bind local:BindingFunctions.ToOpacity(IsDefaultCommunication), Mode=OneWay}"
                                         ToolTipService.ToolTip="Communications processing active — apps like Teams and Zoom apply noise suppression and AGC to this mic.">
                                     <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                                         <FontIcon Glyph="&#xE7BA;"
@@ -150,7 +150,7 @@
                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                           HorizontalAlignment="Center"
                                           ToolTipService.ToolTip="Input level (dBFS)">
-                                    <Run Text="{x:Bind InputLevelDbFs, Mode=OneWay, Converter={StaticResource DbFormat}}"/>
+                                    <Run Text="{x:Bind local:BindingFunctions.DbText(InputLevelDbFs), Mode=OneWay}"/>
                                 </TextBlock>
 
                                 <!-- Meter + Slider (core mixer strip) -->
@@ -181,7 +181,7 @@
                                                        Opacity="0.25"
                                                        IsHitTestVisible="False"/>
                                             <Rectangle x:Name="MeterFill"
-                                                       Fill="{x:Bind InputLevelDbFs, Mode=OneWay, Converter={StaticResource DbToMeterBrush}}"/>
+                                                       Fill="{x:Bind local:BindingFunctions.MeterBrush(InputLevelDbFs), Mode=OneWay}"/>
                                             <Canvas x:Name="TickCanvas"
                                                     IsHitTestVisible="False"/>
                                             <Rectangle x:Name="PeakMarker"
@@ -236,10 +236,10 @@
                                            Command="{x:Bind ToggleMuteCommand}"
                                            HorizontalAlignment="Stretch"
                                            Height="28" Padding="0"
-                                           ToolTipService.ToolTip="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToLabel}}"
+                                           ToolTipService.ToolTip="{x:Bind local:BindingFunctions.MuteLabel(IsMuted), Mode=OneWay}"
                                            AutomationProperties.AutomationId="{x:Bind ToggleMuteAutomationId, Mode=OneWay}"
                                          AutomationProperties.Name="Toggle microphone mute">
-                                        <FontIcon Glyph="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToIcon}}"
+                                        <FontIcon Glyph="{x:Bind local:BindingFunctions.MuteGlyph(IsMuted), Mode=OneWay}"
                                                  FontSize="13"
                                                  Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                     </Button>
@@ -256,6 +256,6 @@
                   Text="No microphones detected"
                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                   Margin="2,4,0,0"
-                  Visibility="{x:Bind ViewModel.HasNoMicrophones, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                  Visibility="{x:Bind ViewModel.HasNoMicrophones, Mode=OneWay}"/>
     </Grid>
 </UserControl>
