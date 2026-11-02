@@ -15,46 +15,14 @@
         </Grid.RowDefinitions>
 
         <!-- Error Banner (auto-dismisses after 5 seconds) -->
-        <Border Grid.Row="0"
-            Background="{ThemeResource ErrorBannerBrush}"
-                CornerRadius="4"
-            Padding="6,4"
-            Margin="1,0,1,3"
-                Visibility="{x:Bind ViewModel.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <FontIcon Grid.Column="0"
-                         Glyph="&#xE7BA;"
-                         FontSize="14"
-                         Foreground="White"
-                         Margin="0,0,6,0"/>
-
-                <TextBlock Grid.Column="1"
-                          Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                          Foreground="White"
-                          FontSize="12"
-                          TextWrapping="Wrap"
-                          VerticalAlignment="Center"/>
-
-                <Button Grid.Column="2"
-                       Background="Transparent"
-                       BorderBrush="Transparent"
-                      Padding="2"
-                       Click="DismissError_Click"
-                      ToolTipService.ToolTip="Dismiss"
-                      AutomationProperties.AutomationId="DismissErrorButton"
-                      AutomationProperties.Name="Dismiss error">
-                    <FontIcon Glyph="&#xE711;"
-                             FontSize="10"
-                             Foreground="White"/>
-                </Button>
-            </Grid>
-        </Border>
+        <InfoBar Grid.Row="0"
+                 Severity="Error"
+                 IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                 IsClosable="True"
+                 Margin="1,0,1,3"
+                 CloseButtonClick="ErrorInfoBar_CloseButtonClick"
+                 AutomationProperties.AutomationId="ErrorInfoBar"/>
 
         <!-- Header with Dock/Undock button -->
         <Grid x:Name="HeaderRow" Grid.Row="1" Margin="1,0,1,2">

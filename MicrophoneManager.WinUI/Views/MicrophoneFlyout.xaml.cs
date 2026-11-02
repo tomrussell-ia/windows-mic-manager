@@ -515,7 +515,7 @@ public sealed partial class MicrophoneFlyout : UserControl
         }
     }
 
-    private void DismissError_Click(object sender, RoutedEventArgs e)
+    private void ErrorInfoBar_CloseButtonClick(Microsoft.UI.Xaml.Controls.InfoBar sender, object args)
     {
         ViewModel.DismissError();
     }

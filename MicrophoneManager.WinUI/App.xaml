@@ -20,9 +20,6 @@
             <converters:DbFormatConverter x:Key="DbFormat"/>
             <converters:DbToMeterBrushConverter x:Key="DbToMeterBrush"/>
 
-            <!-- Error banner (replaced by InfoBar in a later step) -->
-            <SolidColorBrush x:Key="ErrorBannerBrush" Color="#C42B1C"/>
-
             <!-- Meter Gradient (green → yellow → red) -->
             <LinearGradientBrush x:Key="MeterGradientBrush" StartPoint="0,0" EndPoint="1,0">
                 <GradientStop Color="#3CCB5C" Offset="0.00"/>
