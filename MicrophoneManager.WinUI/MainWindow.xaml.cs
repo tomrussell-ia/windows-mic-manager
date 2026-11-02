@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using MicrophoneManager.WinUI.Services;
 
 namespace MicrophoneManager.WinUI;
@@ -18,21 +18,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ICommand ShowFlyoutCommand { get; }
-    public ICommand IconAttributionCommand { get; }
-    public ICommand ToggleStartupCommand { get; }
-    public ICommand ExitCommand { get; }
-
     public string StartupMenuText => StartupService.IsStartupEnabled() ? "✓ Start with Windows" : "Start with Windows";
 
     public MainWindow()
     {
-        // Create commands before InitializeComponent (needed for x:Bind)
-        ShowFlyoutCommand = new RelayCommand(() => ShowFlyout());
-        IconAttributionCommand = new RelayCommand(() => IconAttribution());
-        ToggleStartupCommand = new RelayCommand(() => { ToggleStartup(); OnPropertyChanged(nameof(StartupMenuText)); });
-        ExitCommand = new RelayCommand(() => ExitApp());
-
         InitializeComponent();
 
         // Don't show in taskbar/switchers
@@ -61,6 +50,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         });
     }
 
+    [RelayCommand]
     private void ShowFlyout()
     {
         if (_flyoutWindow == null || !IsWindowVisible(_flyoutWindow))
@@ -86,6 +76,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    [RelayCommand]
     private void ExitApp()
     {
         if (_isDisposed) return;
@@ -118,6 +109,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         Environment.Exit(0);
     }
 
+    [RelayCommand]
     private void IconAttribution()
     {
         const string url = "https://www.flaticon.com/free-icons/radio";
@@ -131,9 +123,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    [RelayCommand]
     private void ToggleStartup()
     {
         StartupService.ToggleStartup();
+        OnPropertyChanged(nameof(StartupMenuText));
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
