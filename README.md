@@ -17,13 +17,13 @@ A Windows 10/11 system tray application for quick microphone selection, similar 
 ## Requirements
 
 - Windows 10 version 1809 or later (Windows 11 recommended)
-- .NET 8.0 Runtime (included in self-contained builds)
+- .NET 10.0 Runtime (included in self-contained builds)
 
 ## Building
 
 ### Prerequisites
 
-- .NET 8.0 SDK
+- .NET 10.0 SDK
 - Windows SDK 10.0.19041.0 or later
 
 ### Build from command line
@@ -57,7 +57,7 @@ The output will be in `publish\win-x64-singlefile\MicrophoneManager.WinUI.exe`.
 
 ### Architecture
 
-- **Framework**: WinUI 3 (.NET 8)
+- **Framework**: WinUI 3 (.NET 10)
 - **System Tray**: H.NotifyIcon.WinUI
 - **Audio Management**: NAudio + IPolicyConfig COM interface
 - **MVVM**: CommunityToolkit.Mvvm

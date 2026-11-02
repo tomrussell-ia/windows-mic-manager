@@ -50,7 +50,7 @@ See [openspec/AGENTS.md](openspec/AGENTS.md) for detailed instructions.
 
 ### Prerequisites
 
-- .NET 8.0 SDK
+- .NET 10.0 SDK
 - Windows SDK 10.0.19041.0 or later
 - Visual Studio 2022 or VS Code with C# extensions
 

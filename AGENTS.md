@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a Windows system tray application for quick microphone selection and control, targeting Windows 10/11. Built with **C# WinUI 3 on .NET 8**.
+This is a Windows system tray application for quick microphone selection and control, targeting Windows 10/11. Built with **C# WinUI 3 on .NET 10**.
 
 **Core Purpose**: Provide comprehensive visibility and control over ALL audio input devices—not just the default. Users need to see and control non-default microphones that applications may be actively using (e.g., game using headset mic while default is a desk mic).
 

@@ -12,7 +12,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
     private static readonly Guid SubtypePcm = new("00000001-0000-0010-8000-00AA00389B71");
     private static readonly Guid SubtypeIeeeFloat = new("00000003-0000-0010-8000-00AA00389B71");
     private readonly MMDeviceEnumerator _enumerator;
-    private readonly DeviceNotificationClient _notificationClient;
+    private readonly MMDeviceNotificationClient _notificationClient;
     private readonly object _volumeNotificationLock = new();
     private readonly Dictionary<string, VolumeNotificationSubscription> _volumeNotificationSubscriptions = new();
     private string? _currentDefaultCaptureDeviceId;
@@ -66,8 +66,19 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
         _policyConfigService = policyConfigService ?? throw new ArgumentNullException(nameof(policyConfigService));
         _syncContext = SynchronizationContext.Current;
         _enumerator = new MMDeviceEnumerator();
-        _notificationClient = new DeviceNotificationClient(this);
-        _enumerator.RegisterEndpointNotificationCallback(_notificationClient);
+        // Events are raised on the Windows audio worker thread (no sync-context marshalling).
+        _notificationClient = _enumerator.CreateNotificationClient(useSynchronizationContext: false);
+        _notificationClient.DeviceStateChanged += (_, _) => OnDeviceTopologyChanged();
+        _notificationClient.DeviceAdded += (_, _) => OnDeviceTopologyChanged();
+        _notificationClient.DeviceRemoved += (_, _) => OnDeviceTopologyChanged();
+        _notificationClient.DefaultDeviceChanged += (_, e) =>
+        {
+            if (e.Flow == DataFlow.Capture)
+            {
+                OnDefaultDeviceChanged();
+            }
+        };
+        _notificationClient.PropertyValueChanged += (_, _) => OnDevicesChanged();
 
         // Track microphone volume/mute changes (e.g., changed by other apps) for ALL capture devices
         UpdateMicrophoneVolumeNotificationSubscriptions();
@@ -1223,7 +1234,7 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
         try
         {
-            _enumerator.UnregisterEndpointNotificationCallback(_notificationClient);
+            _notificationClient.Dispose();
         }
         catch { }
 
@@ -1290,47 +1301,6 @@ public class AudioDeviceService : IDisposable, IAudioDeviceService
 
         public string DeviceId { get; }
         public string FormatTag { get; }
-    }
-
-    /// <summary>
-    /// Internal notification client for device change events.
-    /// </summary>
-    private class DeviceNotificationClient : IMMNotificationClient
-    {
-        private readonly AudioDeviceService _service;
-
-        public DeviceNotificationClient(AudioDeviceService service)
-        {
-            _service = service;
-        }
-
-        public void OnDeviceStateChanged(string deviceId, DeviceState newState)
-        {
-            _service.OnDeviceTopologyChanged();
-        }
-
-        public void OnDeviceAdded(string pwstrDeviceId)
-        {
-            _service.OnDeviceTopologyChanged();
-        }
-
-        public void OnDeviceRemoved(string deviceId)
-        {
-            _service.OnDeviceTopologyChanged();
-        }
-
-        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
-        {
-            if (flow == DataFlow.Capture)
-            {
-                _service.OnDefaultDeviceChanged();
-            }
-        }
-
-        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key)
-        {
-            _service.OnDevicesChanged();
-        }
     }
 
     private sealed class VolumeNotificationSubscription

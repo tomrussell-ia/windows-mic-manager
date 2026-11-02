@@ -26,7 +26,7 @@ For comprehensive project documentation, architecture patterns, and coding guide
 **Last updated**: 2026-01-01
 
 ### Active Technologies
-- C# (.NET 8, WPF) - Implementation in `MicrophoneManager/`
+- C# (.NET 10, WinUI 3) - Implementation in `MicrophoneManager/`
 
 ### Common Commands
 ```powershell

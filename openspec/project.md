@@ -4,7 +4,7 @@
 Windows Microphone Manager is a Windows 10/11 system tray application for quick microphone selection and control. It provides comprehensive visibility and control over ALL audio input devices—not just the default microphone. Users can see and control non-default microphones that applications may be actively using (e.g., game using headset mic while default is a desk mic).
 
 ## Tech Stack
-- C# (.NET 8)
+- C# (.NET 10)
 - WinUI 3 (Windows App SDK)
 - NAudio 2.2.1 (Windows Audio API integration)
 - H.NotifyIcon.WinUI 2.1.3 (System tray)

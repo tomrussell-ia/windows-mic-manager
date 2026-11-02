@@ -16,7 +16,7 @@ dotnet publish (Join-Path $repoRoot $Project) -c Release -p:PublishProfile=$Publ
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # SDK default publish location for folder-based publishing
-$publishDir = Join-Path $repoRoot 'MicrophoneManager.WinUI\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish'
+$publishDir = Join-Path $repoRoot 'MicrophoneManager.WinUI\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish'
 
 if (-not (Test-Path -LiteralPath $publishDir)) {
     Write-Host "Expected publish folder not found: $publishDir" -ForegroundColor Yellow
