@@ -41,26 +41,26 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     public string ToggleMuteAutomationId => $"ToggleMuteButton-{Id}";
 
     [ObservableProperty]
-    private string _name = string.Empty;
+    public partial string Name { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private bool _isDefault;
+    public partial bool IsDefault { get; set; }
 
     [ObservableProperty]
-    private bool _isDefaultCommunication;
+    public partial bool IsDefaultCommunication { get; set; }
 
     [ObservableProperty]
-    private bool _isMuted;
+    public partial bool IsMuted { get; set; }
 
     [ObservableProperty]
-    private double _volumePercent;
+    public partial double VolumePercent { get; set; }
 
     [ObservableProperty]
-    private string _formatTag = string.Empty;
+    public partial string FormatTag { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FidelityLabel), nameof(FidelityColor))]
-    private FidelityTier _fidelityTier;
+    public partial FidelityTier FidelityTier { get; set; }
 
     public string FidelityLabel => FidelityTier switch
     {
@@ -81,13 +81,13 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     };
 
     [ObservableProperty]
-    private double _inputLevelPercent;
+    public partial double InputLevelPercent { get; set; }
 
     [ObservableProperty]
-    private double _inputLevelDbFs;
+    public partial double InputLevelDbFs { get; set; }
 
     [ObservableProperty]
-    private double _peakLevelPercent;
+    public partial double PeakLevelPercent { get; set; }
 
     public void UpdateFrom(MicrophoneDevice device)
     {
@@ -178,7 +178,7 @@ public partial class MicrophoneEntryViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    private bool _isChangingDevice;
+    public partial bool IsChangingDevice { get; set; }
 
     [RelayCommand]
     private async Task SetDefaultAsync()

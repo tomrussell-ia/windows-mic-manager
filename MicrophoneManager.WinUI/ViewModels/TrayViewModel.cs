@@ -14,13 +14,13 @@ public partial class TrayViewModel : ObservableObject, IDisposable
     private bool _disposed;
 
     [ObservableProperty]
-    private string _tooltipText = "Microphone Manager";
+    public partial string TooltipText { get; set; } = "Microphone Manager";
 
     [ObservableProperty]
-    private bool _isMuted;
+    public partial bool IsMuted { get; set; }
 
     [ObservableProperty]
-    private bool _isStartupEnabled;
+    public partial bool IsStartupEnabled { get; set; }
 
     public string StartupMenuText => IsStartupEnabled ? "✓ Start with Windows" : "Start with Windows";
 

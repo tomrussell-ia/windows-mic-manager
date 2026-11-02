@@ -34,31 +34,31 @@ public partial class MicrophoneListViewModel : ObservableObject, IDisposable
     private const double PeakDecayDbPerSecond = 20.0;
 
     [ObservableProperty]
-    private ObservableCollection<MicrophoneEntryViewModel> _microphones = new();
+    public partial ObservableCollection<MicrophoneEntryViewModel> Microphones { get; set; } = new();
 
     [ObservableProperty]
-    private MicrophoneEntryViewModel? _selectedMicrophone;
+    public partial MicrophoneEntryViewModel? SelectedMicrophone { get; set; }
 
     [ObservableProperty]
-    private bool _isMuted;
+    public partial bool IsMuted { get; set; }
 
     [ObservableProperty]
-    private double _currentMicLevelPercent;
+    public partial double CurrentMicLevelPercent { get; set; }
 
     [ObservableProperty]
-    private double _currentMicInputLevelPercent;
+    public partial double CurrentMicInputLevelPercent { get; set; }
 
     [ObservableProperty]
-    private double _currentMicInputLevelDbFs;
+    public partial double CurrentMicInputLevelDbFs { get; set; }
 
     [ObservableProperty]
-    private double _peakMicInputLevelPercent;
+    public partial double PeakMicInputLevelPercent { get; set; }
 
     [ObservableProperty]
-    private double _peakMicInputLevelDbFs;
+    public partial double PeakMicInputLevelDbFs { get; set; }
 
     [ObservableProperty]
-    private string? _errorMessage;
+    public partial string? ErrorMessage { get; set; }
 
     private DispatcherQueueTimer? _errorDismissTimer;
     private const int ErrorDismissMilliseconds = 5000;
