@@ -37,7 +37,10 @@ if ($DestinationDir -match '^~([\\/]|$)') {
     $DestinationDir = Join-Path $HOME $DestinationDir.Substring(1).TrimStart('\','/')
 }
 
-# NOTE: use the folder profile, not single-file. WinUI loads its XAML resources (.pri) from disk\n# next to the exe, and single-file bundling hides them inside the exe, so the app fails at startup.\n#\n# The destination may be a shared folder containing unrelated tools, so never delete
+# NOTE: use the folder profile, not single-file. WinUI loads its XAML resources (.pri) from disk
+# next to the exe, and single-file bundling hides them inside the exe, so the app fails at startup.
+#
+# The destination may be a shared folder containing unrelated tools, so never delete
 # it or anything in it. Only the files produced by the publish are copied (overwriting
 # same-named files, e.g. a previous MicrophoneManager.WinUI.exe).
 New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null

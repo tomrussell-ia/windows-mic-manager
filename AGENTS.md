@@ -75,13 +75,19 @@ _audioService.DefaultMicrophoneVolumeChanged += (s, e) =>
 dotnet build MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -p:Platform=x64
 ```
 
-### Release Single-File Executable
+### Release Build (folder publish)
 ```powershell
 # Uses checked-in publish profile (recommended)
-dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-singlefile
+dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-folder
 
-# Output: publish\win-x64-singlefile\MicrophoneManager.WinUI.exe
+# Output: MicrophoneManager.WinUI\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\MicrophoneManager.WinUI.exe
+# (keep the whole publish folder together)
+
+# Publish and copy to ~\resources\MicrophoneManager (never deletes anything)
+./scripts/publish-folder-to-utils.ps1
 ```
+
+**Do not use the `win-x64-singlefile` profile.** WinUI loads its XAML resources (`.pri`) from disk next to the exe; single-file bundling hides them and the app crashes at startup with `XamlParseException`.
 
 **Note**: Regular `dotnet build` requires `-p:Platform=x64` due to WinUI 3 requirements. For distribution, always use `dotnet publish` with the profile.
 

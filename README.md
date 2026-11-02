@@ -39,10 +39,12 @@ dotnet build MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -p:Platform=
 Recommended (uses the checked-in publish profile):
 
 ```bash
-dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-singlefile
+dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-folder
 ```
 
-The output will be in `publish\win-x64-singlefile\MicrophoneManager.WinUI.exe`.
+The output will be in `MicrophoneManager.WinUI\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\`. Keep the whole folder together; the exe needs the files next to it. (Single-file publishing is not supported: it hides WinUI's XAML resources and the app fails to start.)
+
+`scripts/publish-folder-to-utils.ps1` publishes and copies the result to `~\resources\MicrophoneManager` without deleting anything.
 
 ## Usage
 

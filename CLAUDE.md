@@ -31,8 +31,9 @@ For comprehensive project documentation, architecture patterns, and coding guide
 ### Common Commands
 ```powershell
 # C# Development
-dotnet build MicrophoneManager/MicrophoneManager.csproj
-dotnet publish MicrophoneManager/MicrophoneManager.csproj -p:PublishProfile=win-x64-singlefile
+dotnet build MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -p:Platform=x64
+dotnet publish MicrophoneManager.WinUI/MicrophoneManager.WinUI.csproj -c Release -p:PublishProfile=win-x64-folder
+# Do NOT use win-x64-singlefile: it hides the WinUI .pri resources and the app crashes at startup.
 ```
 
 ---
