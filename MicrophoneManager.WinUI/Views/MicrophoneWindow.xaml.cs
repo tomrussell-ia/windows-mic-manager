@@ -74,6 +74,9 @@ public sealed partial class MicrophoneWindow : Window
     {
         var appWindow = AppWindow;
 
+        // Taskbar / Alt-Tab icon (otherwise Windows shows a generic window glyph).
+        try { appWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "wave-sound.ico")); } catch { }
+
         // Disable DWM entrance/exit animation (the "growing" scale effect on open).
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         int disable = 1;
