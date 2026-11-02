@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$DestinationDir = '~\resources',
+    [string]$DestinationDir = '~\resources\MicrophoneManager',
     [string]$Project = 'MicrophoneManager.WinUI\MicrophoneManager.WinUI.csproj',
-    [string]$PublishProfile = 'win-x64-singlefile'
+    [string]$PublishProfile = 'win-x64-folder'
 )
 
 Set-StrictMode -Version Latest
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath $PSScriptRoot\..).Path
 Set-Location -LiteralPath $repoRoot
 
-Write-Host "Publishing single-file Release..." -ForegroundColor Cyan
+Write-Host "Publishing Release ($PublishProfile)..." -ForegroundColor Cyan
 dotnet publish (Join-Path $repoRoot $Project) -c Release -p:PublishProfile=$PublishProfile -v minimal
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -37,7 +37,7 @@ if ($DestinationDir -match '^~([\\/]|$)') {
     $DestinationDir = Join-Path $HOME $DestinationDir.Substring(1).TrimStart('\','/')
 }
 
-# The destination may be a shared folder containing unrelated tools, so never delete
+# NOTE: use the folder profile, not single-file. WinUI loads its XAML resources (.pri) from disk\n# next to the exe, and single-file bundling hides them inside the exe, so the app fails at startup.\n#\n# The destination may be a shared folder containing unrelated tools, so never delete
 # it or anything in it. Only the files produced by the publish are copied (overwriting
 # same-named files, e.g. a previous MicrophoneManager.WinUI.exe).
 New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null
