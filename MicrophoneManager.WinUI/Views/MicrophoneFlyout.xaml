@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:MicrophoneManager.WinUI.Views"
     xmlns:viewmodels="using:MicrophoneManager.WinUI.ViewModels"
-    Background="{ThemeResource FlyoutBackgroundBrush}">
+    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
 
     <Grid x:Name="RootGrid" Padding="4">
         <Grid.RowDefinitions>
@@ -67,7 +67,7 @@
                       Text="Microphones"
                       FontSize="14"
                       FontWeight="SemiBold"
-                      Foreground="{ThemeResource SecondaryForegroundBrush}"
+                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                       VerticalAlignment="Center"/>
 
             <!-- Dock / Undock button -->
@@ -83,7 +83,7 @@
                 <FontIcon x:Name="DockIcon"
                          Glyph="&#xE718;"
                          FontSize="14"
-                         Foreground="{ThemeResource SecondaryForegroundBrush}"/>
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </Button>
         </Grid>
 
@@ -102,7 +102,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="viewmodels:MicrophoneEntryViewModel">
-                        <Border Background="{ThemeResource CardBackgroundBrush}"
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                CornerRadius="6"
                                Width="116"
                                Padding="6"
@@ -130,7 +130,7 @@
                                              Glyph="&#xE720;"
                                              FontSize="12"
                                              Margin="0,0,3,0"
-                                             Foreground="{ThemeResource ForegroundBrush}"
+                                             Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                              VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1"
                                               Text="{x:Bind Name, Mode=OneWay}"
@@ -138,7 +138,7 @@
                                               FontSize="11"
                                               TextTrimming="CharacterEllipsis"
                                               TextWrapping="NoWrap"
-                                              Foreground="{ThemeResource ForegroundBrush}"
+                                              Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                               VerticalAlignment="Center"/>
                                     <Border Grid.Column="2"
                                             CornerRadius="3" Padding="3,1"
@@ -157,7 +157,7 @@
 
                                 <!-- Communications warning (fixed-height row so all cards align; opacity hides it when inactive) -->
                                 <Border Grid.Row="1"
-                                        Background="{ThemeResource WarningBackgroundBrush}"
+                                        Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                                         CornerRadius="3"
                                         Padding="4,0"
                                         VerticalAlignment="Stretch"
@@ -166,11 +166,11 @@
                                     <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                                         <FontIcon Glyph="&#xE7BA;"
                                                  FontSize="9"
-                                                 Foreground="{ThemeResource WarningForegroundBrush}"
+                                                 Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                                  VerticalAlignment="Center"/>
                                         <TextBlock Text="Comms"
                                                   FontSize="9"
-                                                  Foreground="{ThemeResource WarningForegroundBrush}"
+                                                  Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                                   VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
@@ -179,7 +179,7 @@
                                 <TextBlock Grid.Row="2"
                                           FontSize="13"
                                           FontWeight="SemiBold"
-                                          Foreground="{ThemeResource ForegroundBrush}"
+                                          Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                           HorizontalAlignment="Center"
                                           ToolTipService.ToolTip="Input level (dBFS)">
                                     <Run Text="{x:Bind InputLevelDbFs, Mode=OneWay, Converter={StaticResource DbFormat}}"/>
@@ -195,7 +195,7 @@
                                     <Grid Grid.Column="0"
                                           x:Name="MeterHost"
                                           Margin="0,0,4,0"
-                                          Background="{ThemeResource HoverBrush}"
+                                          Background="{ThemeResource ControlFillColorSecondaryBrush}"
                                           Loaded="MeterHost_Loaded"
                                           Unloaded="MeterHost_Unloaded"
                                           SizeChanged="MeterHost_SizeChanged">
@@ -218,7 +218,7 @@
                                                     IsHitTestVisible="False"/>
                                             <Rectangle x:Name="PeakMarker"
                                                        Height="2"
-                                                       Fill="{ThemeResource ForegroundBrush}"/>
+                                                       Fill="{ThemeResource TextFillColorPrimaryBrush}"/>
                                         </Canvas>
                                     </Grid>
 
@@ -240,29 +240,29 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <Button Grid.Column="0"
+                                    <ToggleButton Grid.Column="0" Tag="default" Click="ModeToggle_Click"
+                                           IsChecked="{x:Bind IsDefault, Mode=OneWay}"
                                            Command="{x:Bind SetDefaultCommand}"
                                            HorizontalAlignment="Stretch"
                                            Height="28" Padding="0"
                                            ToolTipService.ToolTip="Set as default device (apps, games, system sounds)"
                                            AutomationProperties.AutomationId="{x:Bind SetDefaultAutomationId, Mode=OneWay}"
-                                         AutomationProperties.Name="Set as default microphone"
-                                           Background="{x:Bind IsDefault, Mode=OneWay, Converter={StaticResource BoolToButtonBrush}}">
+                                         AutomationProperties.Name="Set as default microphone">
                                         <FontIcon Glyph="&#xE7F4;"
                                                  FontSize="13"/>
-                                    </Button>
+                                    </ToggleButton>
 
-                                    <Button Grid.Column="1"
+                                    <ToggleButton Grid.Column="1" Tag="comm" Click="ModeToggle_Click"
+                                           IsChecked="{x:Bind IsDefaultCommunication, Mode=OneWay}"
                                            Command="{x:Bind SetDefaultCommunicationCommand}"
                                            HorizontalAlignment="Stretch"
                                            Height="28" Padding="0"
                                            ToolTipService.ToolTip="Set as default communications device (Teams, Zoom, Discord)"
                                            AutomationProperties.AutomationId="{x:Bind SetDefaultCommunicationAutomationId, Mode=OneWay}"
-                                         AutomationProperties.Name="Set as default communications microphone"
-                                           Background="{x:Bind IsDefaultCommunication, Mode=OneWay, Converter={StaticResource BoolToButtonBrush}}">
+                                         AutomationProperties.Name="Set as default communications microphone">
                                         <FontIcon Glyph="&#xE717;"
                                                  FontSize="13"/>
-                                    </Button>
+                                    </ToggleButton>
 
                                     <Button Grid.Column="2"
                                            Command="{x:Bind ToggleMuteCommand}"
@@ -270,11 +270,10 @@
                                            Height="28" Padding="0"
                                            ToolTipService.ToolTip="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToLabel}}"
                                            AutomationProperties.AutomationId="{x:Bind ToggleMuteAutomationId, Mode=OneWay}"
-                                         AutomationProperties.Name="Toggle microphone mute"
-                                           Background="{ThemeResource HoverBrush}">
+                                         AutomationProperties.Name="Toggle microphone mute">
                                         <FontIcon Glyph="{x:Bind IsMuted, Mode=OneWay, Converter={StaticResource MuteStateToIcon}}"
                                                  FontSize="13"
-                                                 Foreground="{ThemeResource ForegroundBrush}"/>
+                                                 Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                     </Button>
                                 </Grid>
                             </Grid>
@@ -287,7 +286,7 @@
         <!-- No microphones message -->
         <TextBlock x:Name="EmptyStateText" Grid.Row="3"
                   Text="No microphones detected"
-                  Foreground="{ThemeResource SecondaryForegroundBrush}"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                   Margin="2,4,0,0"
                   Visibility="{x:Bind ViewModel.HasNoMicrophones, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
     </Grid>

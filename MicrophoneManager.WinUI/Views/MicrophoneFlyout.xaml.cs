@@ -35,8 +35,6 @@ public sealed partial class MicrophoneFlyout : UserControl
 
         InitializeComponent();
 
-        Loaded += OnLoaded;
-        ActualThemeChanged += OnActualThemeChanged;
 
         ViewModel.Microphones.CollectionChanged += Microphones_CollectionChanged;
 
@@ -45,20 +43,18 @@ public sealed partial class MicrophoneFlyout : UserControl
             _isUnloaded = true;
 
             try { ViewModel.Microphones.CollectionChanged -= Microphones_CollectionChanged; } catch { }
-            try { Loaded -= OnLoaded; } catch { }
-            try { ActualThemeChanged -= OnActualThemeChanged; } catch { }
             try { ViewModel.Dispose(); } catch { }
         };
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    // ToggleButton flips IsChecked on click; re-sync it with the view model, which is the source of truth.
+    private void ModeToggle_Click(object sender, RoutedEventArgs e)
     {
-        App.ApplyThemePalette(ActualTheme);
-    }
-
-    private void OnActualThemeChanged(FrameworkElement sender, object args)
-    {
-        App.ApplyThemePalette(sender.ActualTheme);
+        if (sender is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton toggle &&
+            toggle.DataContext is MicrophoneManager.WinUI.ViewModels.MicrophoneEntryViewModel vm)
+        {
+            toggle.IsChecked = toggle.Tag as string == "comm" ? vm.IsDefaultCommunication : vm.IsDefault;
+        }
     }
 
     private sealed class MeterSubscription
@@ -232,7 +228,7 @@ public sealed partial class MicrophoneFlyout : UserControl
                     {
                         Width = barWidth,
                         Height = 1,
-                        Fill = (Brush)Application.Current.Resources["ForegroundBrush"],
+                        Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)),
                         Opacity = 0.35,
                         IsHitTestVisible = false
                     };
