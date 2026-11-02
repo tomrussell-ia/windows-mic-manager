@@ -488,7 +488,22 @@ public sealed partial class MicrophoneFlyout : UserControl
         }
 
         // Horizontal mixer: height = tallest single card, not the sum of all cards.
-        return baseHeight + _cardOuterHeight.Value;
+        // Measure the list for real so we never size from a stale/early card measurement
+        // (which clipped the button row off the bottom of the cards).
+        var cardHeight = _cardOuterHeight.Value;
+        try
+        {
+            if (MicrophoneList != null)
+            {
+                MicrophoneList.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+                cardHeight = Math.Max(cardHeight, MicrophoneList.DesiredSize.Height);
+            }
+        }
+        catch
+        {
+        }
+
+        return baseHeight + cardHeight;
     }
 
     private void DockButton_Click(object sender, RoutedEventArgs e)

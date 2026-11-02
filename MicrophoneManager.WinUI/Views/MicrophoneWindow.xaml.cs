@@ -40,7 +40,7 @@ public sealed partial class MicrophoneWindow : Window
         // In flyout mode we also reposition; in docked mode we only resize.
         Flyout.ViewportHeightChanged += (_, _) =>
         {
-            try { DispatcherQueue.TryEnqueue(() => ResizeAndPosition()); } catch { }
+            RequestResize();
         };
 
         ConfigureWindow();
@@ -48,10 +48,7 @@ public sealed partial class MicrophoneWindow : Window
         Activated += MicrophoneWindow_Activated;
         Closed += MicrophoneWindow_Closed;
 
-        RootBorder.Loaded += (_, _) =>
-        {
-            DispatcherQueue.TryEnqueue(() => ResizeAndPosition());
-        };
+        RootBorder.Loaded += (_, _) => RequestResize();
 
         // Close on Escape key (flyout mode only)
         if (!isDocked && Content is UIElement root)
@@ -164,6 +161,27 @@ public sealed partial class MicrophoneWindow : Window
         }
     }
 
+    private bool _resizePending;
+
+    /// <summary>Coalesces bursts of layout events into a single resize pass (prevents flicker).</summary>
+    private void RequestResize()
+    {
+        if (_resizePending) return;
+        _resizePending = true;
+        try
+        {
+            if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                _resizePending = false;
+                ResizeAndPosition();
+            }))
+            {
+                _resizePending = false;
+            }
+        }
+        catch { _resizePending = false; }
+    }
+
     private void ResizeAndPosition()
     {
         try
@@ -204,32 +222,36 @@ public sealed partial class MicrophoneWindow : Window
             targetClientWidth = Math.Clamp(targetClientWidth, minClientWidth, maxClientWidth);
             targetClientHeight = Math.Clamp(targetClientHeight, 200, maxClientHeight);
 
-            // Prefer ResizeClient so the window computes non-client area correctly.
-            appWindow.ResizeClient(new Windows.Graphics.SizeInt32(targetClientWidth, targetClientHeight));
+            // Skip no-op resizes entirely (each one repaints the window).
+            var needsResize = Math.Abs(beforeClient.Width - targetClientWidth) > 1 ||
+                              Math.Abs(beforeClient.Height - targetClientHeight) > 1;
 
-            var afterClient = appWindow.ClientSize;
-            var afterSize = appWindow.Size;
+            var afterClient = beforeClient;
+            var afterSize = beforeSize;
 
-            // Fallback: if ResizeClient isn't honored, translate requested client -> window size using
-            // the current frame insets.
-            if (Math.Abs(afterClient.Width - targetClientWidth) > 1 || Math.Abs(afterClient.Height - targetClientHeight) > 1)
+            if (needsResize)
             {
+                // Non-client frame size (zero for the borderless flyout, title bar for docked).
                 var frameWidth = Math.Max(0, beforeSize.Width - beforeClient.Width);
                 var frameHeight = Math.Max(0, beforeSize.Height - beforeClient.Height);
                 var targetWindowWidth = targetClientWidth + frameWidth;
                 var targetWindowHeight = targetClientHeight + frameHeight;
 
-                try { appWindow.Resize(new Windows.Graphics.SizeInt32(targetWindowWidth, targetWindowHeight)); } catch { }
+                if (!_isDocked)
+                {
+                    // Flyout: resize and anchor bottom-right in ONE call so the window never
+                    // paints at the new size in the old position.
+                    var x = workArea.X + workArea.Width - targetWindowWidth - ScreenMarginPx;
+                    var y = workArea.Y + workArea.Height - targetWindowHeight - ScreenMarginPx;
+                    appWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, targetWindowWidth, targetWindowHeight));
+                }
+                else
+                {
+                    appWindow.ResizeClient(new Windows.Graphics.SizeInt32(targetClientWidth, targetClientHeight));
+                }
+
                 afterClient = appWindow.ClientSize;
                 afterSize = appWindow.Size;
-
-                // One more try with ResizeClient after changing overall window size.
-                if (Math.Abs(afterClient.Width - targetClientWidth) > 1 || Math.Abs(afterClient.Height - targetClientHeight) > 1)
-                {
-                    try { appWindow.ResizeClient(new Windows.Graphics.SizeInt32(targetClientWidth, targetClientHeight)); } catch { }
-                    afterClient = appWindow.ClientSize;
-                    afterSize = appWindow.Size;
-                }
             }
 
             App.Trace(
@@ -244,12 +266,14 @@ public sealed partial class MicrophoneWindow : Window
                 $"size {beforeSize.Width}x{beforeSize.Height}->{afterSize.Width}x{afterSize.Height} " +
                 $"workArea=({workArea.Width}x{workArea.Height})");
 
-            if (!_isDocked)
+            if (!_isDocked && !needsResize)
             {
-                // Flyout mode: anchor to bottom-right of work area
                 var x = workArea.X + workArea.Width - afterSize.Width - ScreenMarginPx;
                 var y = workArea.Y + workArea.Height - afterSize.Height - ScreenMarginPx;
-                appWindow.Move(new Windows.Graphics.PointInt32(x, y));
+                if (appWindow.Position.X != x || appWindow.Position.Y != y)
+                {
+                    appWindow.Move(new Windows.Graphics.PointInt32(x, y));
+                }
             }
         }
         catch
